@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quant Workbench · Demo v1 原型</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-review" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></symbol>
+  <symbol id="i-stock" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M7 15l4-4 3 3 4-6"/></symbol>
+  <symbol id="i-screen" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></symbol>
+  <symbol id="i-backtest" viewBox="0 0 24 24"><path d="M8 5.5l10 6.5-10 6.5z"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M4 6l1.6 1.6L8 5M4 12l1.6 1.6L8 11M4 18l1.6 1.6L8 17"/><path d="M11 6h9M11 12h9M11 18h9"/></symbol>
+  <symbol id="i-mcp" viewBox="0 0 24 24"><path d="M8 7V3M16 7V3M6 7h12v5a6 6 0 0 1-12 0z"/><path d="M12 18v3"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/></symbol>
+  <symbol id="i-empty" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+</svg>
+<a class="skip-link" href="#main-content">跳到主内容</a>
+
+<!-- 静态示例数据横幅：始终可见 -->
+<div class="mock-ribbon" role="note">
+  <strong>静态示例数据</strong> · 本原型仅用于 PRD 评审，所有行情、指标、回测与 Agent 结果均为构造数据，非真实行情，不构成产品承诺
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">QW</span>
+    <span class="brand-name">Quant Workbench</span>
+  </div>
+
+  <div class="topbar-mid">
+    <span class="chip chip-date" title="最近交易日">
+      <span class="dot dot-neutral"></span><b id="top-date">2026-11-06</b>
+    </span>
+    <button class="chip chip-btn" id="top-data-status" title="数据状态与质量检查" data-action="data-status" aria-label="数据状态与质量检查">
+      <span class="dot dot-ok"></span><span id="top-data-text">数据完整 · 15:32</span>
+    </button>
+  </div>
+
+  <div class="topbar-actions">
+    <button class="search-trigger" id="btn-search" aria-label="搜索股票、板块或任务">
+      <svg><use href="#i-search"/></svg><span>搜索</span><kbd>/</kbd>
+    </button>
+    <button class="chip chip-btn" id="btn-connection" aria-label="远端连接状态，点击模拟断开或重连">
+      <span class="dot dot-ok" id="conn-dot"></span><span id="conn-label">已连接 AutoDL</span>
+    </button>
+    <button class="icon-btn" id="btn-context" aria-label="打开上下文栏" title="上下文栏"><svg><use href="#i-panel"/></svg></button>
+    <button class="icon-btn" id="btn-settings" aria-label="设置" title="设置"><svg><use href="#i-gear"/></svg></button>
+    <button class="btn btn-primary" id="btn-agent" aria-label="打开内置 Agent 面板"><svg><use href="#i-spark"/></svg>Agent 面板</button>
+  </div>
+</header>
+
+<div class="offline-banner" id="offline-banner" hidden role="alert">
+  <strong>远端已断连</strong>
+  <span id="offline-text">最后成功数据 2026-11-06 15:32 · 以下内容为本地缓存并标记为过期，请勿当作实时数据。</span>
+  <button class="btn btn-small" id="btn-reconnect">重新连接</button>
+</div>
+
+<div class="app" id="app">
+  <!-- 左栏 -->
+  <nav class="rail" aria-label="主导航">
+    <div class="rail-scroll">
+      <div class="rail-group">
+        <div class="rail-label">工作台</div>
+        <button class="nav-item" data-route="review" title="复盘"><span class="nav-ico" aria-hidden="true"><svg><use href="#i-review"/></svg></span><span class="nav-text">复盘</span></button>
+        <button class="nav-item" data-route="stock" title="个股终端"><span class="nav-ico" aria-hidden="true"><svg><use href="#i-stock"/></svg></span><span class="nav-text">个股</span></button>
+        <button class="nav-item" data-route="screener" title="条件筛选"><span class="nav-ico" aria-hidden="true"><svg><use href="#i-screen"/></svg></span><span class="nav-text">筛选</span></button>
+        <button class="nav-item" data-route="backtest" title="日频回测"><span class="nav-ico" aria-hidden="true"><svg><use href="#i-backtest"/></svg></span><span class="nav-text">回测</span></button>
+      </div>
+
+      <div class="rail-group">
+        <div class="rail-label">工具</div>
+        <button class="nav-item" data-route="tasks" title="任务中心"><span class="nav-ico" aria-hidden="true"><svg><use href="#i-tasks"/></svg></span><span class="nav-text">任务</span><span class="nav-badge" id="task-badge">2</span></button>
+        <button class="nav-item" data-route="mcp" title="Agent 与 MCP"><span class="nav-ico" aria-hidden="true"><svg><use href="#i-mcp"/></svg></span><span class="nav-text">Agent</span></button>
+      </div>
+
+    </div>
+    <div class="rail-footer">
+      <span class="dot dot-ok" id="rail-conn-dot"></span>
+      <span id="rail-conn-text">远端健康 · 延迟 38ms</span>
+    </div>
+  </nav>
+
+  <!-- 主区 -->
+  <main class="workspace">
+    <div class="tabbar" role="tablist" aria-label="工作区标签">
+      <div class="tabs" id="tabs"></div>
+      <button class="icon-btn tab-context-btn" id="btn-context-2" aria-label="打开上下文栏"><svg><use href="#i-panel"/></svg></button>
+    </div>
+    <div class="panes" id="panes">
+      <div class="view" id="main-content" tabindex="-1"></div>
+    </div>
+  </main>
+
+  <!-- 右栏 -->
+  <aside class="context" id="context-panel" aria-label="上下文栏">
+    <div class="context-head">
+      <span>上下文</span>
+      <button class="icon-btn" id="btn-context-close" aria-label="关闭上下文栏">✕</button>
+    </div>
+    <div class="context-body" id="context-body"></div>
+  </aside>
+</div>
+
+<!-- 底栏 -->
+<footer class="bottombar">
+  <div class="bottom-running" id="bottom-running"></div>
+  <div class="bottom-actions">
+    <button class="mini-link" id="btn-open-tasks">任务中心</button>
+    <button class="btn btn-small btn-ghost" id="btn-logs">运行日志</button>
+  </div>
+</footer>
+
+<!-- Agent 抽屉 -->
+<div class="drawer-wrap" id="agent-wrap" hidden>
+  <div class="drawer-backdrop" data-close-drawer="agent"></div>
+  <section class="drawer agent-drawer" role="dialog" aria-modal="true" aria-label="内置 Agent 面板">
+    <header class="drawer-head">
+      <div>
+        <strong>内置 Agent</strong> <span class="tag tag-mock">示例</span>
+        <div class="sub">通过受控工具查询与提交任务 · 不直接访问数据库</div>
+      </div>
+      <button class="icon-btn" data-close-drawer="agent" aria-label="关闭 Agent 面板">✕</button>
+    </header>
+    <div class="agent-status" id="agent-status"></div>
+    <div class="agent-messages" id="agent-messages" aria-live="polite"></div>
+    <div class="agent-presets" id="agent-presets"></div>
+    <form class="agent-input" id="agent-form">
+      <input id="agent-input" type="text" autocomplete="off" placeholder="向 Agent 提问，例如：查询 11-06 涨停梯队" aria-label="向 Agent 提问">
+      <button class="btn btn-primary" type="submit">发送</button>
+    </form>
+  </section>
+</div>
+
+<!-- 日志抽屉 -->
+<div class="drawer-wrap" id="log-wrap" hidden>
+  <div class="drawer-backdrop" data-close-drawer="log"></div>
+  <section class="drawer log-drawer" role="dialog" aria-modal="true" aria-label="运行日志">
+    <header class="drawer-head">
+      <div><strong>运行日志</strong><div class="sub" id="log-sub">当前任务</div></div>
+      <button class="icon-btn" data-close-drawer="log" aria-label="关闭日志">✕</button>
+    </header>
+    <pre class="log-body" id="log-body"></pre>
+  </section>
+</div>
+
+<!-- 通用弹窗 -->
+<div class="modal-wrap" id="modal-wrap" hidden>
+  <div class="modal-backdrop" data-close-modal></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <header class="modal-head">
+      <strong id="modal-title">确认</strong>
+      <button class="icon-btn" data-close-modal aria-label="关闭弹窗">✕</button>
+    </header>
+    <div class="modal-body" id="modal-body"></div>
+    <footer class="modal-foot" id="modal-foot"></footer>
+  </div>
+</div>
+
+<div class="modal-wrap" id="search-wrap" hidden>
+  <div class="modal-backdrop" data-action="close-search"></div>
+  <div class="modal search-modal" role="dialog" aria-modal="true" aria-label="搜索">
+    <input id="search-input" class="search-input" placeholder="搜索股票代码、名称或板块…" aria-label="搜索股票代码、名称或板块">
+    <div class="search-list" id="search-results"></div>
+    <div class="search-hint"><kbd>Esc</kbd> 关闭 · 支持 300750 / 算力 / 通信</div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
