@@ -32,9 +32,11 @@ function pillClass(status: TaskStatus): string {
 interface Props {
   tasks: AsyncState<TaskList> & { retry: () => void };
   onOpenResult: (taskId: string) => void;
+  onSelectTask: (taskId: string) => void;
+  selectedTaskId: string | null;
 }
 
-export function TasksPage({ tasks, onOpenResult }: Props) {
+export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
 
   if (tasks.phase === 'loading') {
@@ -135,7 +137,12 @@ export function TasksPage({ tasks, onOpenResult }: Props) {
             </thead>
             <tbody>
               {rows.map((task) => (
-                <tr key={task.id}>
+                <tr
+                  key={task.id}
+                  className={selectedTaskId === task.id ? 'selected' : ''}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => onSelectTask(task.id)}
+                >
                   <td>
                     <div className="stock-cell">
                       <span className="n num">{task.id}</span>
@@ -159,7 +166,12 @@ export function TasksPage({ tasks, onOpenResult }: Props) {
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     {task.result_ready ? (
-                      <button className="btn btn-small" onClick={() => onOpenResult(task.id)}>打开结果</button>
+                      <button
+                        className="btn btn-small"
+                        onClick={(event) => { event.stopPropagation(); onOpenResult(task.id); }}
+                      >
+                        打开结果
+                      </button>
                     ) : task.artifact ? (
                       <span className="small muted">{task.artifact}</span>
                     ) : (

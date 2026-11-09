@@ -337,6 +337,11 @@ export interface AgentSession {
   messages: AgentMessage[];
 }
 
+export interface TaskLogs {
+  task_id: string;
+  lines: string[];
+}
+
 /* ---------- 会话内组合（观察池 / 选股篮） ---------- */
 
 export interface Portfolio {

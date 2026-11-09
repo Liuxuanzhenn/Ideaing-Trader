@@ -15,6 +15,7 @@ import type {
   Stock,
   TaskItem,
   TaskList,
+  TaskLogs,
   TaskStatus,
 } from './types';
 
@@ -37,8 +38,13 @@ export interface ApiClient {
   getAgentSession(): Promise<AgentSession>;
   sendAgentMessage(text: string): Promise<AgentMessage>;
 
+  /** 观察池子视图要的一次批量行情；真实实现是一条批量接口，不是 N 次单票请求 */
+  getStocks(codes: string[]): Promise<Stock[]>;
+  getTaskLogs(taskId: string): Promise<TaskLogs>;
+
   getPortfolio(): Promise<Portfolio>;
   addWatchlist(code: string): Promise<Portfolio>;
+  removeWatchlist(code: string): Promise<Portfolio>;
   addBasket(code: string): Promise<Portfolio>;
 }
 
@@ -84,8 +90,11 @@ export function createHttpClient(baseUrl = '/api'): ApiClient {
     getNews: () => request<NewsList>('/news'),
     getAgentSession: () => request<AgentSession>('/agent/session'),
     sendAgentMessage: (text) => post<AgentMessage>('/agent/messages', { text }),
+    getStocks: (codes) => post<Stock[]>('/stocks/batch', { codes }),
+    getTaskLogs: (taskId) => request<TaskLogs>(`/tasks/${encodeURIComponent(taskId)}/logs`),
     getPortfolio: () => request<Portfolio>('/portfolio'),
     addWatchlist: (code) => post<Portfolio>('/portfolio/watchlist', { code }),
+    removeWatchlist: (code) => request<Portfolio>(`/portfolio/watchlist/${encodeURIComponent(code)}`, { method: 'DELETE' }),
     addBasket: (code) => post<Portfolio>('/portfolio/basket', { code }),
   };
 }

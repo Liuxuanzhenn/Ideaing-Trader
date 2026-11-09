@@ -28,9 +28,11 @@ export interface Nav {
   taskId: string | null;
   /** 回测页的两个视图 */
   view: 'config' | 'result';
+  /** 个股模块子视图：详情 / 观察池 */
+  stockView: 'detail' | 'watchlist';
 }
 
-const DEFAULT_NAV: Nav = { route: 'review', code: null, taskId: null, view: 'config' };
+const DEFAULT_NAV: Nav = { route: 'review', code: null, taskId: null, view: 'config', stockView: 'detail' };
 
 /** 便于演示/截图：?route=stock&code=002261、?route=backtest&view=result&task=T-1041 */
 export function readNav(): Nav {
@@ -42,6 +44,7 @@ export function readNav(): Nav {
     code: params.get('code'),
     taskId: params.get('task'),
     view: params.get('view') === 'result' ? 'result' : 'config',
+    stockView: params.get('sv') === 'watchlist' ? 'watchlist' : 'detail',
   };
 }
 
@@ -55,5 +58,6 @@ export function writeNav(nav: Nav): void {
   setOrDelete('code', nav.code);
   setOrDelete('task', nav.taskId);
   setOrDelete('view', nav.view === 'result' ? 'result' : null);
+  setOrDelete('sv', nav.stockView === 'watchlist' ? 'watchlist' : null);
   window.history.replaceState(null, '', url);
 }

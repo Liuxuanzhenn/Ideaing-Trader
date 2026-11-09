@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ApiClient } from '../api/client';
 import type { Portfolio } from '../api/types';
 import { useAsync } from '../lib/useAsync';
@@ -6,17 +6,50 @@ import { Candles } from '../components/charts';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
 import { fmt, pct, toneOf, yuan } from '../lib/format';
 
+export type StockView = 'detail' | 'watchlist';
+
 interface Props {
   client: ApiClient;
   code: string | null;
   portfolio: Portfolio;
+  view: StockView;
+  onChangeView: (view: StockView) => void;
+  onOpenStock: (code: string) => void;
   onAddWatch: (code: string) => void;
   onAddBasket: (code: string) => void;
+  onRemoveWatch: (code: string) => void;
 }
 
 const STATUS_TEXT = { normal: '正常交易', suspended: '停牌', st: 'ST' } as const;
 
-export function StockPage({ client, code, portfolio, onAddWatch, onAddBasket }: Props) {
+export function StockPage(props: Props) {
+  const { view, onChangeView, portfolio } = props;
+  return (
+    <>
+      <div className="subtabs" role="tablist" aria-label="个股子视图" style={{ marginBottom: 16 }}>
+        <button
+          role="tab"
+          aria-selected={view === 'detail'}
+          className={`subtab ${view === 'detail' ? 'active' : ''}`}
+          onClick={() => onChangeView('detail')}
+        >
+          个股详情
+        </button>
+        <button
+          role="tab"
+          aria-selected={view === 'watchlist'}
+          className={`subtab ${view === 'watchlist' ? 'active' : ''}`}
+          onClick={() => onChangeView('watchlist')}
+        >
+          观察池 {portfolio.watchlist.length}
+        </button>
+      </div>
+      {view === 'watchlist' ? <WatchlistView {...props} /> : <StockDetail {...props} />}
+    </>
+  );
+}
+
+function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props) {
   const load = useCallback(
     () => (code ? client.getStock(code) : new Promise<never>(() => {})),
     [client, code],
@@ -28,7 +61,7 @@ export function StockPage({ client, code, portfolio, onAddWatch, onAddBasket }: 
       <div className="card">
         <EmptyBlock
           title="尚未选择股票"
-          description="从复盘的涨停表、筛选结果或资讯关联股票进入。单击预览，双击打开本页。"
+          description="从复盘的涨停表、筛选结果或观察池进入。单击预览，双击打开本页。"
         />
       </div>
     );
@@ -47,9 +80,7 @@ export function StockPage({ client, code, portfolio, onAddWatch, onAddBasket }: 
     );
   }
 
-  if (stock.phase === 'error') {
-    return <ErrorBlock error={stock.error} onRetry={stock.retry} />;
-  }
+  if (stock.phase === 'error') return <ErrorBlock error={stock.error} onRetry={stock.retry} />;
 
   const data = stock.data!;
   const inWatch = portfolio.watchlist.includes(data.code);
@@ -131,5 +162,84 @@ export function StockPage({ client, code, portfolio, onAddWatch, onAddBasket }: 
         <div className="card-note">前复权 · 示例数据，K 线与成交量均由 mock 生成。</div>
       </div>
     </>
+  );
+}
+
+function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props) {
+  const codes = portfolio.watchlist;
+  const key = useMemo(() => codes.join(','), [codes]);
+  const load = useCallback(
+    () => (codes.length ? client.getStocks(codes) : Promise.resolve([])),
+    [client, key, codes],
+  );
+  const stocks = useAsync(load);
+
+  if (codes.length === 0) {
+    return (
+      <div className="card">
+        <EmptyBlock
+          title="观察池为空"
+          description="从复盘表格、筛选结果或个股页加入后，会出现在这里（当前保存在内存，刷新即清空）。"
+        />
+      </div>
+    );
+  }
+
+  if (stocks.phase === 'loading') {
+    return (
+      <div className="skeleton" aria-busy="true">
+        <div className="sk sk-row" /><div className="sk sk-row" /><div className="sk sk-row" />
+      </div>
+    );
+  }
+
+  if (stocks.phase === 'error') return <ErrorBlock error={stocks.error} onRetry={stocks.retry} />;
+
+  const rows = stocks.data ?? [];
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <span className="card-title">观察池</span>
+        <span className="card-sub">{rows.length} 只 · 内存态，刷新后清空</span>
+      </div>
+      {rows.length === 0 ? (
+        <EmptyBlock title="观察池里的标的没有行情" description="接口返回空数组：代码存在但当日无数据。" />
+      ) : (
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>股票</th><th className="num">现价</th><th className="num">涨跌幅</th>
+                <th className="num">换手率</th><th className="num">成交额</th>
+                <th className="num">连板上限</th><th style={{ textAlign: 'right' }}>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((stock) => (
+                <tr key={stock.code} onDoubleClick={() => onOpenStock(stock.code)} style={{ cursor: 'pointer' }}>
+                  <td>
+                    <div className="stock-cell">
+                      <span className="n">{stock.name}</span>
+                      <span className="c">{stock.code}</span>
+                    </div>
+                  </td>
+                  <td className="num">{fmt(stock.price)}</td>
+                  <td className={`num ${toneOf(stock.chg_pct)}`}>{pct(stock.chg_pct)}</td>
+                  <td className="num">{stock.turnover_pct === null ? '—' : `${stock.turnover_pct}%`}</td>
+                  <td className="num">{yuan(stock.amount)}</td>
+                  <td className="num">{stock.stats.max_ladder} 板</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button className="btn btn-small" onClick={() => onOpenStock(stock.code)}>打开</button>{' '}
+                    <button className="btn btn-small" onClick={() => onRemoveWatch(stock.code)}>移除</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="card-note">观察池目前只存在内存；真实实现走 /api/portfolio，且批量行情走一条批量接口而不是逐票请求。</div>
+    </div>
   );
 }

@@ -33,6 +33,7 @@ export default function App() {
   const [demo, setDemo] = useState<DemoState>(readDemoState);
   const [nav, setNav] = useState<Nav>(readNav);
   const [selectedCode, setSelectedCode] = useState<string | null>(() => readNav().code);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [ctxOpen, setCtxOpen] = useState(false);
   const [portfolio, setPortfolio] = useState<Portfolio>(EMPTY_PORTFOLIO);
 
@@ -61,15 +62,16 @@ export default function App() {
   }, [hasActiveTask, tasks.retry]);
 
   useEffect(() => {
-    const open = Boolean(selectedCode) || nav.route === 'tasks' || nav.route === 'agent' || nav.route === 'backtest';
+    const open = Boolean(selectedCode) || Boolean(selectedTaskId) || nav.route === 'tasks' || nav.route === 'agent' || nav.route === 'backtest';
     setCtxOpen(open);
-  }, [nav.route, selectedCode]);
+  }, [nav.route, selectedCode, selectedTaskId]);
 
   const go = (route: RouteId, patch: Partial<Nav> = {}) => {
-    const next: Nav = { route, code: null, taskId: null, view: 'config', ...patch };
+    const next: Nav = { route, code: null, taskId: null, view: 'config', stockView: 'detail', ...patch };
     writeNav(next);
     setNav(next);
     if (next.code) setSelectedCode(next.code);
+    if (next.route !== 'tasks') setSelectedTaskId(null);
   };
 
   const openStock = (code: string) => go('stock', { code });
@@ -80,6 +82,10 @@ export default function App() {
   };
   const addBasket = async (code: string) => {
     const next = await client.addBasket(code);
+    setPortfolio(next);
+  };
+  const removeWatch = async (code: string) => {
+    const next = await client.removeWatchlist(code);
     setPortfolio(next);
   };
 
@@ -126,8 +132,12 @@ export default function App() {
               client={client}
               code={nav.code}
               portfolio={portfolio}
+              view={nav.stockView}
+              onChangeView={(stockView) => go('stock', { code: nav.code, stockView })}
+              onOpenStock={openStock}
               onAddWatch={addWatch}
               onAddBasket={addBasket}
+              onRemoveWatch={removeWatch}
             />
           ) : null}
 
@@ -156,7 +166,12 @@ export default function App() {
           {nav.route === 'news' ? <NewsPage client={client} onOpenStock={openStock} /> : null}
 
           {nav.route === 'tasks' ? (
-            <TasksPage tasks={tasks} onOpenResult={(taskId) => go('backtest', { view: 'result', taskId })} />
+            <TasksPage
+              tasks={tasks}
+              selectedTaskId={selectedTaskId}
+              onSelectTask={(taskId) => setSelectedTaskId(taskId)}
+              onOpenResult={(taskId) => go('backtest', { view: 'result', taskId })}
+            />
           ) : null}
 
           {nav.route === 'agent' ? <AgentPage client={client} onGoTasks={() => go('tasks')} /> : null}
@@ -165,10 +180,16 @@ export default function App() {
         <ContextPanel
           status={status}
           client={client}
-          selectedCode={selectedCode}
+          selectedCode={selectedTaskId ? null : selectedCode}
+          selectedTask={
+            nav.route === 'tasks' && selectedTaskId
+              ? (tasks.data?.items.find((task) => task.id === selectedTaskId) ?? null)
+              : null
+          }
           onOpenStock={openStock}
           onAddWatch={addWatch}
           isWatched={selectedCode ? portfolio.watchlist.includes(selectedCode) : false}
+          onOpenResult={(taskId) => go('backtest', { view: 'result', taskId })}
         />
       </div>
 

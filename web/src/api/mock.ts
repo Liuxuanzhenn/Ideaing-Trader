@@ -21,6 +21,7 @@ import type {
   Stock,
   TaskItem,
   TaskList,
+  TaskLogs,
   Trade,
 } from './types';
 import type { DemoState } from '../lib/demo';
@@ -531,11 +532,34 @@ export function createMockClient(state: DemoState): ApiClient {
         return reply;
       }, 700),
 
+    getStocks: (codes) =>
+      guard<Stock[]>(() => codes.filter((code) => STOCK_BASE[code]).map((code) => stockPayload(state, code)), 260),
+
+    getTaskLogs: (taskId) =>
+      guard<TaskLogs>(() => {
+        const task = memory.tasks.find((item) => item.id === taskId);
+        if (!task) throw new ApiError('NOT_FOUND', `未找到任务 ${taskId}`, 404);
+        const lines = [
+          `${task.submitted} 任务受理（${task.type}）`,
+          `${task.submitted} 参数：${task.params}`,
+          task.status === 'queued' ? `${task.submitted} 已入队，等待前序任务完成` : `${task.submitted} 开始执行`,
+          task.status === 'failed' ? `${task.finished ?? ''} 失败：${task.error ?? '未知错误'}` : `进度 ${task.progress_pct}%`,
+          task.finished ? `${task.finished} 状态 ${task.status}` : '仍在运行，日志持续追加',
+        ];
+        return { task_id: taskId, lines };
+      }, 200),
+
     getPortfolio: () => guard<Portfolio>(() => portfolio(), 120),
 
     addWatchlist: (code) =>
       guard<Portfolio>(() => {
         if (!memory.watchlist.includes(code)) memory.watchlist.push(code);
+        return portfolio();
+      }, 120),
+
+    removeWatchlist: (code) =>
+      guard<Portfolio>(() => {
+        memory.watchlist = memory.watchlist.filter((item) => item !== code);
         return portfolio();
       }, 120),
 

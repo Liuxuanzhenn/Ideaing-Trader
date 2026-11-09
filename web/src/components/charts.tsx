@@ -69,11 +69,15 @@ export function LineChart({ series, labels }: { series: LineSeries[]; labels: st
   const right = 12;
   const top = 14;
   const bottom = 26;
-  const all = series.flatMap((item) => item.values);
+  // 长度不一致时统一按最短截断：宁可少画尾部，也不要让两条线错位（错位会被读成"策略跑赢基准"）
+  const count = Math.min(...series.map((item) => item.values.length));
+  if (series.length === 0 || !Number.isFinite(count) || count === 0) {
+    return <div className="chart-empty">没有可绘制的序列</div>;
+  }
+  const all = series.flatMap((item) => item.values.slice(0, count));
   const min = Math.min(...all);
   const max = Math.max(...all);
   const pad = (max - min) * 0.12 || 1;
-  const count = series[0]?.values.length ?? 0;
   const x = (index: number) => left + (index / Math.max(1, count - 1)) * (W - left - right);
   const y = (value: number) => top + (1 - (value - (min - pad)) / (max - min + pad * 2)) * (H - top - bottom);
 
@@ -91,7 +95,7 @@ export function LineChart({ series, labels }: { series: LineSeries[]; labels: st
       {series.map((item) => (
         <path
           key={item.label}
-          d={item.values.map((value, index) => `${index ? 'L' : 'M'}${x(index).toFixed(1)},${y(value).toFixed(1)}`).join(' ')}
+          d={item.values.slice(0, count).map((value, index) => `${index ? 'L' : 'M'}${x(index).toFixed(1)},${y(value).toFixed(1)}`).join(' ')}
           fill="none"
           stroke={item.color}
           strokeWidth={item.dashed ? 1.2 : 1.8}
@@ -117,6 +121,7 @@ export function AreaChart({ values }: { values: number[] }) {
   const right = 12;
   const top = 14;
   const bottom = 24;
+  if (values.length === 0) return <div className="chart-empty">没有可绘制的回撤数据</div>;
   const min = Math.min(...values, -1);
   const x = (index: number) => left + (index / Math.max(1, values.length - 1)) * (W - left - right);
   const y = (value: number) => top + (value / min) * (H - top - bottom);
@@ -125,8 +130,9 @@ export function AreaChart({ values }: { values: number[] }) {
 
   return (
     <svg className="chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="回撤曲线">
-      <path d={area} fill="var(--up)" opacity={0.14} />
-      <path d={line} fill="none" stroke="var(--up)" strokeWidth={1.2} />
+      {/* 回撤是亏损，用跌色；红色在本产品里只表示上涨 */}
+      <path d={area} fill="var(--down)" opacity={0.14} />
+      <path d={line} fill="none" stroke="var(--down)" strokeWidth={1.2} />
       <line x1={left} y1={top} x2={W - right} y2={top} stroke={AXIS} />
       <text x={4} y={top + 6} fill={LABEL}>0%</text>
       <text x={4} y={H - bottom} fill={LABEL}>{min.toFixed(0)}%</text>
