@@ -62,6 +62,14 @@ export default function App() {
   }, [hasActiveTask, tasks.retry]);
 
   useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCtxOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
     const open = Boolean(selectedCode) || Boolean(selectedTaskId) || nav.route === 'tasks' || nav.route === 'agent' || nav.route === 'backtest';
     setCtxOpen(open);
   }, [nav.route, selectedCode, selectedTaskId]);

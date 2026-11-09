@@ -21,6 +21,7 @@ export function DevBar({ state, onChange }: { state: DemoState; onChange: (next:
             type="button"
             className={`seg-item ${state === item ? 'active' : ''}`}
             aria-pressed={state === item}
+            tabIndex={-1}
             onClick={() => onChange(item)}
           >
             {DEMO_LABELS[item]}

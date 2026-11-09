@@ -183,7 +183,15 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
                 </thead>
                 <tbody>
                   {pageRows.map((row) => (
-                    <tr key={row.code} onDoubleClick={() => onOpenStock(row.code)} style={{ cursor: 'pointer' }}>
+                    <tr
+                      key={row.code}
+                      style={{ cursor: 'pointer' }}
+                      tabIndex={0}
+                      onDoubleClick={() => onOpenStock(row.code)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') { event.preventDefault(); onOpenStock(row.code); }
+                      }}
+                    >
                       <td>
                         <div className="stock-cell">
                           <span className="n">{row.name}</span>

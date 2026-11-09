@@ -141,7 +141,11 @@ export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }:
                   key={task.id}
                   className={selectedTaskId === task.id ? 'selected' : ''}
                   style={{ cursor: 'pointer' }}
+                  tabIndex={0}
                   onClick={() => onSelectTask(task.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') { event.preventDefault(); onSelectTask(task.id); }
+                  }}
                 >
                   <td>
                     <div className="stock-cell">

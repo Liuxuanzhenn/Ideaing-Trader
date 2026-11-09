@@ -217,7 +217,15 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
             </thead>
             <tbody>
               {rows.map((stock) => (
-                <tr key={stock.code} onDoubleClick={() => onOpenStock(stock.code)} style={{ cursor: 'pointer' }}>
+                <tr
+                  key={stock.code}
+                  style={{ cursor: 'pointer' }}
+                  tabIndex={0}
+                  onDoubleClick={() => onOpenStock(stock.code)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') { event.preventDefault(); onOpenStock(stock.code); }
+                  }}
+                >
                   <td>
                     <div className="stock-cell">
                       <span className="n">{stock.name}</span>

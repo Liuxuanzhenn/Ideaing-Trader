@@ -104,7 +104,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
         </div>
       ) : (
         <>
-          <div className="index-strip section">
+          <div className="index-strip">
             {data.indices.map((index) => (
               <div className="index-item" key={index.code}>
                 <div className="index-name">
@@ -154,8 +154,12 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                       key={item.code}
                       className={selectedCode === item.code ? 'selected' : ''}
                       style={{ cursor: 'pointer' }}
+                      tabIndex={0}
                       onClick={() => onSelectStock?.(item.code)}
                       onDoubleClick={() => onOpenStock?.(item.code)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') { event.preventDefault(); onOpenStock?.(item.code); }
+                      }}
                     >
                       <td>
                         <div className="stock-cell">

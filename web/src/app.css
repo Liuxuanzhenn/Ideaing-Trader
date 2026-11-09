@@ -64,8 +64,9 @@ b, strong { font-weight: 520; }
 
 .chip {
   display: inline-flex; align-items: center; gap: 7px;
-  height: 30px; padding: 0 9px; border-radius: 7px;
-  border: 1px solid var(--line);
+  height: 30px; padding: 0 9px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .05);
   color: var(--muted); font-size: 13.5px; white-space: nowrap;
 }
 .chip b { color: var(--text); font-weight: 520; font-variant-numeric: tabular-nums; }
@@ -167,13 +168,14 @@ b, strong { font-weight: 520; }
 }
 .bottombar .spacer { margin-left: auto; }
 .task-mini { display: flex; align-items: center; gap: 9px; }
-.progress { display: inline-block; width: 96px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.progress { display: inline-block; width: 96px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .10); overflow: hidden; }
 .progress > i { display: block; height: 100%; background: var(--muted); }
 .pill {
-  display: inline-flex; align-items: center; height: 19px; padding: 0 6px; border-radius: 5px;
-  font-size: 12px; border: 1px solid var(--line); color: var(--muted);
+  display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px;
+  font-size: 13px; border: 1px solid rgba(255, 255, 255, .09);
+  background: rgba(255, 255, 255, .07); color: var(--muted-2);
 }
-.pill-running { color: var(--text); border-color: rgba(255, 255, 255, .22); }
+.pill-running { color: var(--text); }
 .pill-success { color: var(--down); border-color: rgba(47, 163, 122, .25); }
 .pill-failed { color: var(--up); border-color: rgba(224, 90, 109, .25); }
 
@@ -212,7 +214,7 @@ b, strong { font-weight: 520; }
 .status-chip {
   display: inline-flex; align-items: center; gap: 6px;
   height: 24px; padding: 0 10px; border-radius: 999px;
-  font-size: 12.5px; color: var(--muted);
+  font-size: 12.5px; font-weight: 480; color: var(--muted);
   border: 1px solid rgba(255, 255, 255, .10);
 }
 .status-warn { color: var(--warn); border-color: rgba(212, 163, 0, .34); }
@@ -244,18 +246,18 @@ b, strong { font-weight: 520; }
 
 /* 表格 */
 .table-wrap { border: 1px solid var(--hairline); border-radius: var(--radius-sm); overflow-x: auto; }
-table.data { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 table.data thead th {
-  text-align: left; font-weight: 520; color: var(--muted-2);
-  font-size: 12.5px; padding: 9px 12px; background: #0f0f0f;
+  text-align: left; font-weight: 400; color: var(--muted-2);
+  font-size: 13px; padding: 11px 12px; background: #0f0f0f;
   border-bottom: 1px solid var(--line); white-space: nowrap;
 }
-table.data td { padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+table.data td { padding: 11px 12px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
 table.data tbody tr:last-child td { border-bottom: 0; }
 table.data .num { text-align: right; }
 .stock-cell { display: flex; flex-direction: column; gap: 1px; }
 .stock-cell .n { font-weight: 520; }
-.stock-cell .c { font-family: var(--mono); font-size: 12px; color: var(--muted-2); }
+.stock-cell .c { font-family: var(--mono); font-size: 13px; color: var(--muted-2); }
 
 /* 状态：骨架 / 空 / 错误 */
 .skeleton { display: flex; flex-direction: column; gap: 12px; }
@@ -274,7 +276,8 @@ table.data .num { text-align: right; }
 .error-code { font-family: var(--mono); font-size: 12.5px; color: var(--muted-2); }
 
 @media (max-width: 1100px) {
-  .shell { grid-template-columns: 208px minmax(0, 1fr); }
+  /* 同时覆盖 .shell.ctx-collapsed，否则双类选择器优先级更高，窄屏仍按 236px 排 */
+  .shell, .shell.ctx-collapsed { grid-template-columns: 208px minmax(0, 1fr); }
   .context { display: none; }
   .index-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .index-item:nth-child(2n) { border-right: 0; }
@@ -377,3 +380,7 @@ table.data .num { text-align: right; }
   border: 1px solid var(--line); border-radius: 8px; background: #0d0d0f;
   font-family: var(--mono); font-size: 11.5px; line-height: 1.7; color: var(--muted);
 }
+
+/* 键盘可达性：行可聚焦，聚焦环在行内侧 */
+table.data tbody tr:focus-visible { outline: 2px solid #ffffff66; outline-offset: -2px; }
+table.data tbody tr[tabindex] { cursor: pointer; }
