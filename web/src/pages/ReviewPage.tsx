@@ -25,8 +25,14 @@ function amountText(value: number): string {
   return `${value.toFixed(0)} 元`;
 }
 
-const delta = (value: number, unit: 'int' | 'pt' = 'int') =>
-  `${value > 0 ? '+' : ''}${unit === 'pt' ? value.toFixed(1) : value.toFixed(0)}${unit === 'pt' ? 'pt' : ''}`;
+function DeltaChip({ value, unit = 'int' }: { value: number | null; unit?: 'int' | 'pt' | 'yi' }) {
+  if (value === null || Number.isNaN(value)) return <span className="delta flat">—</span>;
+  const tone = value > 0 ? 'up' : value < 0 ? 'down' : 'flat';
+  const arrow = value > 0 ? '▲' : value < 0 ? '▼' : '·';
+  const abs = Math.abs(value);
+  const text = unit === 'pt' ? `${abs.toFixed(1)}pt` : unit === 'yi' ? `${abs.toFixed(2)} 万亿` : abs.toFixed(0);
+  return <span className={`delta ${tone}`}>{arrow} {text}</span>;
+}
 
 export function ReviewPage({ client, date, dateFallback = false, selectedCode = null, onSelectStock, onOpenStock }: Props) {
   const load = useCallback(() => (date ? client.getReview(date) : pending<Review>()), [client, date]);
@@ -136,28 +142,28 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             <div className="tile">
               <div className="k">涨停</div>
               <div className="v up">{count(limit.sealed_up)}</div>
-              <div className="s">{prev ? delta((limit.sealed_up ?? 0) - prev.sealed_up) : '—'}</div>
+              <DeltaChip value={prev ? (limit.sealed_up ?? 0) - prev.sealed_up : null} />
               <Spark values={series.sealed_up} kind="bar" tone="var(--up)" />
             </div>
 
             <div className="tile">
               <div className="k">跌停</div>
               <div className="v down">{count(limit.sealed_down)}</div>
-              <div className="s">{prev && limit.sealed_down !== null ? delta(limit.sealed_down - (prev.sealed_down ?? 0)) : '—'}</div>
+              <DeltaChip value={prev && limit.sealed_down !== null ? limit.sealed_down - (prev.sealed_down ?? 0) : null} />
               <Spark values={series.sealed_down} kind="bar" tone="var(--down)" />
             </div>
 
             <div className="tile">
               <div className="k">炸板</div>
               <div className="v">{count(limit.broken_up)}</div>
-              <div className="s">{prev && limit.broken_up !== null ? delta(limit.broken_up - (prev.broken_up ?? 0)) : '—'}</div>
+              <DeltaChip value={prev && limit.broken_up !== null ? limit.broken_up - (prev.broken_up ?? 0) : null} />
               <Spark values={series.broken_up} kind="bar" tone="var(--muted-2)" />
             </div>
 
             <div className="tile">
               <div className="k">封板率</div>
               <div className="v">{sealPct === null ? '—' : `${sealPct.toFixed(1)}%`}</div>
-              <div className="s">{sealPct !== null && prevSealPct !== null ? delta(sealPct - prevSealPct, 'pt') : '—'}</div>
+              <DeltaChip value={sealPct !== null && prevSealPct !== null ? sealPct - prevSealPct : null} unit="pt" />
               <Spark values={series.seal_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
             </div>
 
@@ -187,9 +193,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             <div className="tile">
               <div className="k">两市成交</div>
               <div className="v">{amountText(market.amount)}</div>
-              <div className="s">
-                {prev ? `${market.amount >= prev.amount ? '+' : ''}${((market.amount - prev.amount) / 1e12).toFixed(2)} 万亿` : '—'}
-              </div>
+              <DeltaChip value={prev ? (market.amount - prev.amount) / 1e12 : null} unit="yi" />
               <Spark values={series.amount.map((v) => v / 1e12)} tone="var(--muted)" />
             </div>
 
