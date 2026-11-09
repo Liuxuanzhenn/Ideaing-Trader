@@ -4,7 +4,7 @@ import type { Review } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, ReviewSkeleton, StaleBanner, StatusChip } from '../components/States';
 import { Spark } from '../components/charts';
-import { fmt, fmtDate, fmtDateTime, pct, toneOf, yuan } from '../lib/format';
+import { fmt, fmtDate, fmtDateTime, pct, toneOf } from '../lib/format';
 
 interface Props {
   client: ApiClient;
@@ -279,58 +279,77 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             )}
           </div>
 
-          <div className="card section">
-            <div className="card-head">
-              <span className="card-title">板块</span>
-              <span className="card-sub">
-                按当日涨跌幅排序 · 净流入需分单方向，日线口径暂不提供
-              </span>
+          <div className="split section">
+            <div className="card">
+              <div className="card-head">
+                <span className="card-title">板块</span>
+                <span className="card-sub">按涨跌幅</span>
+              </div>
+              <div className="table-wrap">
+                <table className="data sectors">
+                  <thead>
+                    <tr>
+                      <th>板块</th>
+                      <th className="num">涨跌</th>
+                      <th className="num">涨停</th>
+                      <th>领涨</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...data.sectors]
+                      .sort((a, b) => b.chg_pct - a.chg_pct)
+                      .map((sector) => (
+                        <tr key={sector.name}>
+                          <td>{sector.name}</td>
+                          <td className={`num ${toneOf(sector.chg_pct)}`}>{pct(sector.chg_pct)}</td>
+                          <td className="num">{sector.limit_up || '—'}</td>
+                          <td>
+                            <div className="leaders">
+                              {sector.leaders.slice(0, 2).map((leader) => (
+                                <button
+                                  className="link-chip"
+                                  key={leader.code}
+                                  onClick={() => onOpenStock?.(leader.code)}
+                                  tabIndex={0}
+                                >
+                                  {leader.name}
+                                  <span className={toneOf(leader.chg_pct)}>{pct(leader.chg_pct)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="table-wrap">
-              <table className="data">
-                <thead>
-                  <tr>
-                    <th>板块</th>
-                    <th className="num">涨跌幅</th>
-                    <th className="num">5 日</th>
-                    <th className="num">上涨/家数</th>
-                    <th className="num">涨停</th>
-                    <th className="num">成交额</th>
-                    <th>领涨</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...data.sectors]
-                    .sort((a, b) => b.chg_pct - a.chg_pct)
-                    .map((sector) => (
-                      <tr key={sector.name}>
-                        <td>{sector.name}</td>
-                        <td className={`num ${toneOf(sector.chg_pct)}`}>{pct(sector.chg_pct)}</td>
-                        <td className={`num ${toneOf(sector.chg_5d_pct ?? 0)}`}>
-                          {sector.chg_5d_pct === null ? '—' : pct(sector.chg_5d_pct)}
-                        </td>
-                        <td className="num muted">{sector.up}/{sector.total}</td>
-                        <td className="num">{sector.limit_up || '—'}</td>
-                        <td className="num muted">{yuan(sector.amount)}</td>
-                        <td>
-                          <div className="leaders">
-                            {sector.leaders.map((leader) => (
-                              <button
-                                className="link-chip"
-                                key={leader.code}
-                                onClick={() => onOpenStock?.(leader.code)}
-                                tabIndex={0}
-                              >
-                                {leader.name}
-                                <span className={toneOf(leader.chg_pct)}>{pct(leader.chg_pct)}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
+
+            <div className="card">
+              <div className="card-head">
+                <span className="card-title">个股资金</span>
+                <span className="card-sub">净流入 / 净流出</span>
+              </div>
+              <div className="flow-grid">
+                {([
+                  ['inflow', '流入'],
+                  ['outflow', '流出'],
+                ] as const).map(([key, label]) => (
+                  <div className="flow-col" key={key}>
+                    <div className="flow-head">{label}</div>
+                    {data.flows[key].map((row) => (
+                      <button className="flow-row" key={row.code} onClick={() => onOpenStock?.(row.code)}>
+                        <span className="fname">{row.name}</span>
+                        <span className={`num ${row.net_in > 0 ? 'up' : 'down'}`}>
+                          {row.net_in > 0 ? '+' : ''}
+                          {(row.net_in / 1e8).toFixed(2)} 亿
+                        </span>
+                        <span className={`num ${toneOf(row.chg_pct)}`}>{pct(row.chg_pct)}</span>
+                      </button>
                     ))}
-                </tbody>
-              </table>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </>

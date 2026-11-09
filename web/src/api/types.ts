@@ -137,6 +137,14 @@ export interface SectorRow {
   leaders: { code: string; name: string; chg_pct: number }[];
 }
 
+export interface StockFlow {
+  code: string;
+  name: string;
+  chg_pct: number;
+  /** 主力净流入，单位：元；正为流入。需分单方向数据，当前来源未接入 */
+  net_in: number;
+}
+
 export interface Review {
   meta: DataMeta;
   is_trading_day: boolean;
@@ -148,6 +156,7 @@ export interface Review {
   prev: PrevSnapshot | null;
   series: ReviewSeries;
   sectors: SectorRow[];
+  flows: { inflow: StockFlow[]; outflow: StockFlow[] };
   ladder: LadderRow[];
   news: NewsItem[];
 }

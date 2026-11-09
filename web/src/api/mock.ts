@@ -119,6 +119,25 @@ const SECTORS = [
   { name: '房地产', chg_pct: -2.18, chg_5d_pct: -4.62, up: 12, total: 58, limit_up: 0, amount: 386e8, leaders: [{ code: '000002', name: '万科A', chg_pct: -1.02 }] },
 ];
 
+const FLOWS = {
+  inflow: [
+    { code: '603083', name: '剑桥科技', chg_pct: 10.01, net_in: 8.62e8 },
+    { code: '002261', name: '拓维信息', chg_pct: 9.96, net_in: 7.14e8 },
+    { code: '000977', name: '浪潮信息', chg_pct: 6.85, net_in: 6.28e8 },
+    { code: '300502', name: '新易盛', chg_pct: 9.99, net_in: 4.86e8 },
+    { code: '002230', name: '科大讯飞', chg_pct: 9.98, net_in: 3.42e8 },
+    { code: '300474', name: '景嘉微', chg_pct: 10.0, net_in: 2.86e8 },
+  ],
+  outflow: [
+    { code: '300750', name: '宁德时代', chg_pct: -1.24, net_in: -5.18e8 },
+    { code: '601012', name: '隆基绿能', chg_pct: -2.36, net_in: -4.42e8 },
+    { code: '000002', name: '万科A', chg_pct: -1.02, net_in: -3.06e8 },
+    { code: '600519', name: '贵州茅台', chg_pct: -0.42, net_in: -2.74e8 },
+    { code: '603259', name: '药明康德', chg_pct: 1.12, net_in: -1.96e8 },
+    { code: '600036', name: '招商银行', chg_pct: 0.62, net_in: -1.42e8 },
+  ],
+};
+
 const NEWS: NewsItem[] = [
   { id: 'N-1', title: '算力基础设施项目招标结果公示', source: '示例交易所公告', published: '18:40', status: 'full', reason_source: 'exchange', codes: ['000977', '603083'] },
   { id: 'N-2', title: '多地发布数据要素行动方案', source: '示例政策库', published: '16:10', status: 'full', reason_source: 'exchange', codes: ['300229'] },
@@ -228,6 +247,7 @@ function reviewPayload(state: DemoState): Review {
         },
     series: buildSeries(empty),
     sectors: empty ? [] : SECTORS,
+    flows: empty ? { inflow: [], outflow: [] } : FLOWS,
     ladder: empty ? [] : LADDER,
     news: empty ? [] : NEWS.slice(0, 3),
   };

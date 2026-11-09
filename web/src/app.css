@@ -536,3 +536,30 @@ table.data .link-chip:hover { color: var(--text); text-decoration: underline; te
 .ind-chip b { color: var(--text); font-weight: 520; font-variant-numeric: tabular-nums; }
 .leaders { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }
 table.data .link-chip { display: inline-flex; align-items: center; gap: 5px; }
+
+/* 板块 / 个股资金并排 */
+.split { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; margin-top: 20px; }
+.split .card { padding: 14px 16px; }
+table.data.sectors tbody td { padding: 7px 10px; }
+table.data.sectors thead th { padding: 7px 10px; }
+table.data.sectors .leaders { gap: 10px; flex-wrap: nowrap; overflow: hidden; }
+table.data.sectors .link-chip { font-size: 13px; }
+
+.flow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.flow-head { font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+.flow-col { min-width: 0; }
+.flow-row {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px; align-items: baseline;
+  padding: 6px 0; text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  font-size: 13px;
+}
+.flow-row:last-child { border-bottom: 0; }
+.flow-row:hover .fname { color: var(--text); }
+.flow-row .fname { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flow-row .num { font-size: 13px; }
+@media (max-width: 1024px) {
+  .split { grid-template-columns: 1fr; }
+  .flow-grid { grid-template-columns: 1fr 1fr; }
+}
