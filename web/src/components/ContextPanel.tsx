@@ -34,7 +34,7 @@ export function ContextPanel({ status }: Props) {
               <dt>距当前</dt>
               <dd>{data ? humanGap(data.as_of) : '—'}</dd>
               <dt>覆盖率</dt>
-              <dd className="num">{data ? `${data.coverage.rate}%` : '—'}</dd>
+              <dd className="num">{data ? `${data.coverage.pct}%` : '—'}</dd>
               <dt>连接</dt>
               <dd>{data ? (data.connection === 'online' ? '已连接' : '已断连') : '—'}</dd>
             </dl>

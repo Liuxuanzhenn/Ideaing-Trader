@@ -10,10 +10,12 @@ import { EmptyBlock } from './components/States';
 import { ReviewPage } from './pages/ReviewPage';
 import { TasksPage } from './pages/TasksPage';
 import { ROUTE_LABEL, readRoute, writeRoute, type RouteId } from './routes';
+import { fmtDate } from './lib/format';
 import { readDemoState, writeDemoState, type DemoState } from './lib/demo';
 import { useAsync } from './lib/useAsync';
 
-function todayParam(): string {
+/** 兜底：数据状态接口不可用时才用自然日，且必须在页面上显式提示。 */
+function naturalDay(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -35,6 +37,11 @@ export default function App() {
   useEffect(() => {
     setCtxOpen(route === 'tasks');
   }, [route]);
+
+  // 当前交易日只认数据状态接口的 as_of；拿不到就退回自然日并标记
+  const tradeDate = status.phase === 'ok' && status.data ? fmtDate(status.data.as_of) : null;
+  const reviewDate = tradeDate ?? (status.phase === 'error' ? naturalDay() : null);
+  const dateFallback = status.phase === 'error';
 
   const runningCount = (tasks.data?.items ?? []).filter(
     (task) => task.status === 'running' || task.status === 'queued',
@@ -60,7 +67,7 @@ export default function App() {
         <Rail active={route} onChange={changeRoute} runningCount={runningCount} />
 
         <main className="main">
-          {route === 'review' ? <ReviewPage client={client} date={todayParam()} /> : null}
+          {route === 'review' ? <ReviewPage client={client} date={reviewDate} dateFallback={dateFallback} /> : null}
           {route === 'tasks' ? <TasksPage client={client} /> : null}
           {route !== 'review' && route !== 'tasks' ? (
             <div className="card">

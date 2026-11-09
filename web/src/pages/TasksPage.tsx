@@ -143,8 +143,8 @@ export function TasksPage({ client }: { client: ApiClient }) {
                   <td><span className={pillClass(task.status)}>{STATUS_TEXT[task.status]}</span></td>
                   <td>
                     <div className="task-mini">
-                      <span className="progress"><i style={{ width: `${task.progress}%` }} /></span>
-                      <span className="num">{task.progress}%</span>
+                      <span className="progress"><i style={{ width: `${task.progress_pct}%` }} /></span>
+                      <span className="num">{task.progress_pct}%</span>
                     </div>
                   </td>
                   <td className="muted" title={task.error ?? task.params}>

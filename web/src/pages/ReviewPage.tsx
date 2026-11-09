@@ -1,17 +1,32 @@
 import { useCallback } from 'react';
 import type { ApiClient } from '../api/client';
+import type { Review } from '../api/types';
 import { useAsync } from '../lib/useAsync';
-import { EmptyBlock, ErrorBlock, PartialBanner, ReviewSkeleton, StaleBanner, StatusChip } from '../components/States';
+import {
+  EmptyBlock,
+  ErrorBlock,
+  PartialBanner,
+  ReviewSkeleton,
+  StaleBanner,
+  StatusChip,
+} from '../components/States';
 import { fmt, fmtDate, fmtDateTime, pct, toneOf } from '../lib/format';
 
 interface Props {
   client: ApiClient;
-  /** 请求参数，不是展示值；展示一律取响应里的 as_of/updated_at */
-  date: string;
+  /** 由 getServiceStatus().as_of 推出的交易日；null = 状态未就绪，先不发请求 */
+  date: string | null;
+  /** 状态接口不可用、退回自然日时为 true */
+  dateFallback?: boolean;
 }
 
-export function ReviewPage({ client, date }: Props) {
-  const load = useCallback(() => client.getReview(date), [client, date]);
+const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
+
+export function ReviewPage({ client, date, dateFallback = false }: Props) {
+  const load = useCallback(
+    () => (date ? client.getReview(date) : pending<Review>()),
+    [client, date],
+  );
   const review = useAsync(load);
 
   if (review.phase === 'loading') {
@@ -20,7 +35,7 @@ export function ReviewPage({ client, date }: Props) {
         <div className="view-head">
           <div>
             <h2 className="view-title">盘后复盘</h2>
-            <div className="view-sub">正在读取数据…</div>
+            <div className="view-sub">{date ? '正在读取数据…' : '正在读取当前交易日…'}</div>
           </div>
         </div>
         <ReviewSkeleton />
@@ -44,11 +59,10 @@ export function ReviewPage({ client, date }: Props) {
 
   const data = review.data!;
   const { meta, breadth, limit } = data;
-  const upW = breadth.total ? (breadth.up / breadth.total) * 100 : 0;
-  const flatW = breadth.total ? (breadth.flat / breadth.total) * 100 : 0;
-  const downW = breadth.total ? (breadth.down / breadth.total) * 100 : 0;
-  const missing = (value: number | null, suffix = '') =>
-    value === null ? '—' : `${fmt(value, 0)}${suffix}`;
+  const breadthTotal = breadth.up + breadth.flat + breadth.down;
+  const share = (value: number) => (breadthTotal ? (value / breadthTotal) * 100 : 0);
+  const count = (value: number | null) => (value === null ? '—' : fmt(value, 0));
+  const sealRate = limit.seal_rate === null ? '—' : `${(limit.seal_rate * 100).toFixed(1)}%`;
 
   return (
     <>
@@ -59,10 +73,20 @@ export function ReviewPage({ client, date }: Props) {
             <StatusChip level={meta.status.level} />
           </h2>
           <div className="view-sub">
-            更新 {fmtDateTime(meta.updated_at)} · 覆盖率 {meta.coverage.rate}% · 快照 {meta.snapshot}
+            更新 {fmtDateTime(meta.updated_at)} · 覆盖率 {meta.coverage.pct}% · 快照 {meta.snapshot}
           </div>
         </div>
       </div>
+
+      {dateFallback ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div>
+            <strong>交易日未知</strong>：数据状态接口不可用，已退回自然日 {date} 请求。
+            <span className="banner-detail">该日期可能不是交易日，结果会显示为空或过期，不要当作当日复盘。</span>
+          </div>
+        </div>
+      ) : null}
 
       {meta.status.level === 'stale' ? <StaleBanner meta={meta} /> : null}
       {meta.status.level === 'partial' ? <PartialBanner meta={meta} /> : null}
@@ -71,7 +95,7 @@ export function ReviewPage({ client, date }: Props) {
         <div className="card section">
           <EmptyBlock
             title="当日没有复盘数据"
-            description="该日期不是交易日，或数据尚未产出。数据是否为空由接口的 is_trading_day 与 status.level 决定，不靠前端猜测。"
+            description="该日期不是交易日，或数据尚未产出。是否为空由接口的 is_trading_day 与 status.level 决定，前端不靠自然日猜测。"
             children={<button className="btn" onClick={review.retry}>重新加载</button>}
           />
         </div>
@@ -92,31 +116,29 @@ export function ReviewPage({ client, date }: Props) {
 
           <div className="card section market-state">
             <div className="ms-row">
-              <div className="ms-item"><span className="k">涨停</span><span className="v up">{limit.up_cnt}</span></div>
-              <div className="ms-item"><span className="k">跌停</span><span className="v down">{missing(limit.down_cnt)}</span></div>
-              <div className="ms-item"><span className="k">炸板</span><span className="v">{missing(limit.broken_cnt)}</span></div>
-              <div className="ms-item">
-                <span className="k">封板率</span>
-                <span className="v">{limit.seal_rate === null ? '—' : `${limit.seal_rate}%`}</span>
-              </div>
+              <div className="ms-item"><span className="k">涨停</span><span className="v up">{count(limit.sealed_up)}</span></div>
+              <div className="ms-item"><span className="k">跌停</span><span className="v down">{count(limit.sealed_down)}</span></div>
+              <div className="ms-item"><span className="k">炸板</span><span className="v">{count(limit.broken_up)}</span></div>
+              <div className="ms-item"><span className="k">封板率</span><span className="v">{sealRate}</span></div>
+              <div className="ms-item"><span className="k">无涨跌幅限制</span><span className="v">{count(limit.no_limit)}</span></div>
             </div>
             <div className="breadth-bar" aria-label="上涨 / 平盘 / 下跌家数比例">
-              <i style={{ width: `${upW}%`, background: 'var(--up)' }} />
-              <i style={{ width: `${flatW}%`, background: '#6e6e6e' }} />
-              <i style={{ width: `${downW}%`, background: 'var(--down)' }} />
+              <i style={{ width: `${share(breadth.up)}%`, background: 'var(--up)' }} />
+              <i style={{ width: `${share(breadth.flat)}%`, background: '#6e6e6e' }} />
+              <i style={{ width: `${share(breadth.down)}%`, background: 'var(--down)' }} />
             </div>
             <div className="ms-legend">
               <span className="up">涨 {fmt(breadth.up, 0)}</span>
               <span>平 {fmt(breadth.flat, 0)}</span>
               <span className="down">跌 {fmt(breadth.down, 0)}</span>
-              <span className="ms-total">全 A {fmt(breadth.total, 0)}</span>
+              <span className="ms-total">全 A {fmt(breadthTotal, 0)}</span>
             </div>
           </div>
 
           <div className="card section">
             <div className="card-head">
               <span className="card-title">今日连板</span>
-              <span className="card-sub">示例 · 单击可预览（预览面板为后续阶段）</span>
+              <span className="card-sub">示例 · 预览面板为后续阶段</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {data.ladder.map((item) => (
@@ -142,11 +164,13 @@ export function ReviewPage({ client, date }: Props) {
                   <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.title}
                   </span>
-                  <span className="small muted">{item.status === 'full' ? '已抓取全文' : item.status === 'title' ? '仅标题' : '源不可用'}</span>
+                  <span className="small muted">
+                    {item.reason_source === 'exchange' ? '交易所公告' : item.reason_source === 'news' ? '媒体资讯' : '规则推断'}
+                  </span>
                 </div>
               ))
             )}
-            <div className="card-note">来源、发布时间与抓取状态均为 mock；事实与规则推断在真实接口中分开标注。</div>
+            <div className="card-note">来源、发布时间与抓取状态均为 mock；真实接口中 reason_source 需与 reason 文本分开标注。</div>
           </div>
         </>
       )}

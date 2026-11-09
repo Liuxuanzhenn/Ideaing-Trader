@@ -24,8 +24,8 @@ export function BottomBar({ tasks }: Props) {
             </span>
             <span className="num">{task.id}</span>
             <span>{task.type}</span>
-            <span className="progress"><i style={{ width: `${task.progress}%` }} /></span>
-            <span className="num">{task.progress}%</span>
+            <span className="progress"><i style={{ width: `${task.progress_pct}%` }} /></span>
+            <span className="num">{task.progress_pct}%</span>
           </span>
         ))
       )}
