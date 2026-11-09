@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 import hashlib
 import json
+from pathlib import PurePosixPath
 from typing import Any, Mapping
 
 
@@ -21,15 +22,25 @@ def _require_text(value: str, field: str) -> str:
 
 
 def _require_date(value: date, field: str) -> date:
-    if not isinstance(value, date):
-        raise TypeError(f"{field} must be a date")
+    if type(value) is not date:
+        raise TypeError(f"{field} must be a date without a time")
     return value
 
 
 def _require_non_negative(value: Decimal, field: str) -> Decimal:
-    if value < 0:
-        raise ValueError(f"{field} must be non-negative")
+    if not isinstance(value, Decimal):
+        raise TypeError(f"{field} must be a Decimal")
+    if not value.is_finite() or value < 0:
+        raise ValueError(f"{field} must be finite and non-negative")
     return value
+
+
+def _canonical_partition(value: str) -> str:
+    value = _require_text(value, "partition").replace("\\", "/")
+    path = PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError("partition must be a relative path without parent traversal")
+    return path.as_posix()
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +58,8 @@ class Instrument:
         object.__setattr__(self, "symbol", _require_text(self.symbol, "symbol"))
         object.__setattr__(self, "name", _require_text(self.name, "name"))
         object.__setattr__(self, "exchange", _require_text(self.exchange, "exchange"))
-        object.__setattr__(self, "board", _require_text(self.board, "board"))
+        if not isinstance(self.is_st, bool):
+            raise TypeError("is_st must be a bool")
         _require_date(self.listed_on, "listed_on")
 
 
@@ -68,6 +80,8 @@ class DailyBar:
     def __post_init__(self) -> None:
         object.__setattr__(self, "symbol", _require_text(self.symbol, "symbol"))
         _require_date(self.trade_date, "trade_date")
+        if not isinstance(self.adjustment, str):
+            raise TypeError("adjustment must be a string")
         for field in ("open", "high", "low", "close"):
             _require_non_negative(getattr(self, field), field)
         _require_non_negative(self.volume, "volume")
@@ -85,6 +99,8 @@ class TradingCalendarEntry:
 
     def __post_init__(self) -> None:
         _require_date(self.trade_date, "trade_date")
+        if not isinstance(self.is_open, bool):
+            raise TypeError("is_open must be a bool")
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,10 +131,16 @@ class SnapshotManifest:
     captured_at: datetime
 
     def __post_init__(self) -> None:
-        _require_text(self.source, "source")
-        _require_text(self.schema_version, "schema_version")
-        if not self.partitions or any(not p.strip() for p in self.partitions):
-            raise ValueError("partitions must contain non-empty paths")
+        source = _require_text(self.source, "source")
+        schema_version = _require_text(self.schema_version, "schema_version")
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "schema_version", schema_version)
+        if not self.partitions:
+            raise ValueError("partitions must contain at least one path")
+        partitions = tuple(_canonical_partition(p) for p in self.partitions)
+        if len(set(partitions)) != len(partitions):
+            raise ValueError("partitions must not contain duplicates")
+        object.__setattr__(self, "partitions", partitions)
         if self.captured_at.tzinfo is None:
             raise ValueError("captured_at must include a timezone")
 
