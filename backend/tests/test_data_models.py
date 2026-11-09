@@ -105,6 +105,37 @@ class DailyBarTests(unittest.TestCase):
             preclose=Decimal("10.0"),
         )
         self.assertFalse(bar.trading)
+
+    def test_suspended_bar_may_carry_close_without_real_ohlc(self) -> None:
+        """baostock keeps the previous close on a suspended day and zeroes the rest."""
+        bar = DailyBar(
+            symbol="600000",
+            trade_date=date(2010, 2, 26),
+            open=Decimal("0"),
+            high=Decimal("0"),
+            low=Decimal("0"),
+            close=Decimal("20.74"),
+            volume=Decimal("0"),
+            amount=Decimal("0"),
+            trading=False,
+            preclose=Decimal("20.74"),
+        )
+        self.assertFalse(bar.trading)
+
+    def test_trading_bar_still_requires_consistent_high_low(self) -> None:
+        with self.assertRaises(ValueError):
+            DailyBar(
+                symbol="600000",
+                trade_date=date(2026, 11, 6),
+                open=Decimal("10.0"),
+                high=Decimal("9.9"),
+                low=Decimal("9.8"),
+                close=Decimal("10.5"),
+                volume=Decimal("100"),
+                amount=Decimal("1050"),
+            )
+
+    def test_suspended_bar_cannot_carry_volume(self) -> None:
         with self.assertRaises(ValueError):
             DailyBar(
                 symbol="600000",

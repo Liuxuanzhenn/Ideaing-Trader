@@ -75,7 +75,11 @@ class DailyBar:
 
     Trading state and ST flag live on the bar because baostock reports them per
     day; deriving status history from bars avoids a second source of truth.
+
+    Sources carry a suspended day's close forward, so a bar with trading=False has
+    a reference price but no tradable OHLC; only its price fields are unchecked.
     """
+
 
     symbol: str
     trade_date: date
@@ -107,7 +111,9 @@ class DailyBar:
             raise TypeError("is_st must be a bool")
         if not self.trading and self.volume != 0:
             raise ValueError("a suspended bar cannot carry volume")
-        if self.high < max(self.open, self.close) or self.low > min(self.open, self.close):
+        if self.trading and (
+            self.high < max(self.open, self.close) or self.low > min(self.open, self.close)
+        ):
             raise ValueError("high/low must contain open and close")
         if self.adjustment not in {"none", "forward", "backward"}:
             raise ValueError("adjustment must be none, forward, or backward")
