@@ -80,7 +80,6 @@ class DailyBar:
     a reference price but no tradable OHLC; only its price fields are unchecked.
     """
 
-
     symbol: str
     trade_date: date
     open: Decimal
@@ -93,6 +92,7 @@ class DailyBar:
     preclose: Decimal | None = None
     trading: bool = True
     is_st: bool = False
+    turn: Decimal | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "symbol", _require_text(self.symbol, "symbol"))
@@ -109,6 +109,8 @@ class DailyBar:
             raise TypeError("trading must be a bool")
         if not isinstance(self.is_st, bool):
             raise TypeError("is_st must be a bool")
+        if self.turn is not None:
+            _require_non_negative(self.turn, "turn")
         if not self.trading and self.volume != 0:
             raise ValueError("a suspended bar cannot carry volume")
         if self.trading and (

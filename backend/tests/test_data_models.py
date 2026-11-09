@@ -87,6 +87,21 @@ class DailyBarTests(unittest.TestCase):
                     amount=Decimal("1050"),
                 )
 
+    def test_turn_must_be_non_negative_when_present(self) -> None:
+        base = dict(
+            symbol="600000",
+            trade_date=date(2026, 11, 6),
+            open=Decimal("10.0"),
+            high=Decimal("10.8"),
+            low=Decimal("9.8"),
+            close=Decimal("10.5"),
+            volume=Decimal("100"),
+            amount=Decimal("1050"),
+        )
+        self.assertEqual(DailyBar(**base, turn=Decimal("3.21")).turn, Decimal("3.21"))
+        with self.assertRaises(ValueError):
+            DailyBar(**base, turn=Decimal("-1"))
+
     def test_rejects_non_boolean_status(self) -> None:
         with self.assertRaises(TypeError):
             TradingCalendarEntry(date(2026, 11, 6), 1)
