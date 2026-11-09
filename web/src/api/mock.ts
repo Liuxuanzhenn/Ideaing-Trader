@@ -325,6 +325,11 @@ function stockPayload(state: DemoState, code: string): Stock {
       limit_250: Math.floor(random() * 9),
       max_ladder: Math.floor(random() * 5),
     },
+    context: {
+      market: { name: '上证指数', chg_pct: 0.32 },
+      sector: partial ? null : { name: base.industry ?? '未分类', chg_pct: +(base.chg_pct * 0.42).toFixed(2) },
+      relation: base.chg_pct > 0 ? 'resonance' : 'contrarian',
+    },
     candles: state === 'empty' ? [] : candlesFor(Number(code) + 7, base.price),
   };
 }

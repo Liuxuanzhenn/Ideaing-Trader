@@ -634,3 +634,20 @@ table.data.sectors .link-chip { font-size: 13px; }
 @media (max-width: 1024px) {
   .mosaic { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* 关键统计：四列文字块 + 一行区间数据，不用卡片 */
+.stat4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.stat4 .stat { min-width: 0; }
+.stat4 .k { font-size: 12.5px; color: var(--muted); }
+.stat4 .v { font-size: 21px; font-weight: 540; margin-top: 3px; font-variant-numeric: tabular-nums; color: var(--text); }
+.stat4 .v.up { color: var(--up); }
+.stat4 .v.down { color: var(--down); }
+.stat4 .v .small { font-size: 13px; font-weight: 420; }
+.stat4 .s { font-size: 12.5px; color: var(--muted-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.stat4 .s.ctx { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.stat4 .s.ctx b { font-weight: 520; }
+.stat4 .s.ctx b.up { color: var(--up); }
+.stat4 .s.ctx b.down { color: var(--down); }
+.stat4 .s.ctx b.flat { color: var(--muted); }
+.stat4 + .range-row { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .07); }
+@media (max-width: 1024px) { .stat4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

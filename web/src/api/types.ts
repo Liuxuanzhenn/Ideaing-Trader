@@ -239,6 +239,12 @@ export interface Stock {
   /** 流通市值，单位：元；缺股本数据时为 null */
   mcap: number | null;
   stats: StockStats;
+  /** 当日与大盘/板块的关系，用于判断低开高走是共振还是逆势 */
+  context: {
+    market: { name: string; chg_pct: number };
+    sector: { name: string; chg_pct: number } | null;
+    relation: 'resonance' | 'contrarian' | 'flat';
+  };
   candles: Candle[];
 }
 
