@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../api/types';
 
 export interface AsyncState<T> {
@@ -16,7 +16,8 @@ export function useAsync<T>(load: () => Promise<T>): AsyncState<T> & { retry: ()
 
   useEffect(() => {
     let alive = true;
-    setState({ phase: 'loading' });
+    // 刷新时保留上一份数据，避免轮询把页面打回骨架
+    setState((prev) => (prev.data ? prev : { phase: 'loading' }));
     loadRef
       .current()
       .then((data) => {
@@ -37,5 +38,7 @@ export function useAsync<T>(load: () => Promise<T>): AsyncState<T> & { retry: ()
     };
   }, [nonce, load]);
 
-  return { ...state, retry: () => setNonce((n) => n + 1) };
+  const retry = useCallback(() => setNonce((n) => n + 1), []);
+
+  return { ...state, retry };
 }

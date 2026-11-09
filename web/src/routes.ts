@@ -20,17 +20,40 @@ export const ROUTE_LABEL: Record<RouteId, string> = {
   agent: 'Agent',
 };
 
-/** 阶段 1 只有这两个页面接入了 mock。 */
-export const IMPLEMENTED: RouteId[] = ['review', 'tasks'];
-
-/** 便于演示/截图：?route=tasks 直接打开指定页面。 */
-export function readRoute(): RouteId {
-  const value = new URLSearchParams(window.location.search).get('route');
-  return ROUTES.some((route) => route.id === value) ? (value as RouteId) : 'review';
+export interface Nav {
+  route: RouteId;
+  /** 个股页/预览标的 */
+  code: string | null;
+  /** 回测结果对应的任务号 */
+  taskId: string | null;
+  /** 回测页的两个视图 */
+  view: 'config' | 'result';
 }
 
-export function writeRoute(route: RouteId): void {
+const DEFAULT_NAV: Nav = { route: 'review', code: null, taskId: null, view: 'config' };
+
+/** 便于演示/截图：?route=stock&code=002261、?route=backtest&view=result&task=T-1041 */
+export function readNav(): Nav {
+  const params = new URLSearchParams(window.location.search);
+  const routeParam = params.get('route');
+  const route = ROUTES.some((item) => item.id === routeParam) ? (routeParam as RouteId) : DEFAULT_NAV.route;
+  return {
+    route,
+    code: params.get('code'),
+    taskId: params.get('task'),
+    view: params.get('view') === 'result' ? 'result' : 'config',
+  };
+}
+
+export function writeNav(nav: Nav): void {
   const url = new URL(window.location.href);
-  url.searchParams.set('route', route);
+  url.searchParams.set('route', nav.route);
+  const setOrDelete = (key: string, value: string | null) => {
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+  };
+  setOrDelete('code', nav.code);
+  setOrDelete('task', nav.taskId);
+  setOrDelete('view', nav.view === 'result' ? 'result' : null);
   window.history.replaceState(null, '', url);
 }

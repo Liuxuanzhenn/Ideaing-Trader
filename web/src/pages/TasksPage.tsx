@@ -1,7 +1,6 @@
-import { useCallback, useState } from 'react';
-import type { ApiClient } from '../api/client';
-import type { TaskStatus } from '../api/types';
-import { useAsync } from '../lib/useAsync';
+import { useState } from 'react';
+import type { TaskList, TaskStatus } from '../api/types';
+import type { AsyncState } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip, TasksSkeleton } from '../components/States';
 import { fmtDateTime } from '../lib/format';
 
@@ -30,10 +29,13 @@ function pillClass(status: TaskStatus): string {
   return 'pill';
 }
 
-export function TasksPage({ client }: { client: ApiClient }) {
+interface Props {
+  tasks: AsyncState<TaskList> & { retry: () => void };
+  onOpenResult: (taskId: string) => void;
+}
+
+export function TasksPage({ tasks, onOpenResult }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
-  const load = useCallback(() => client.getTasks({ limit: 20 }), [client]);
-  const tasks = useAsync(load);
 
   if (tasks.phase === 'loading') {
     return (
@@ -64,7 +66,8 @@ export function TasksPage({ client }: { client: ApiClient }) {
   }
 
   const data = tasks.data!;
-  const rows = data.items.filter((task) => {
+  const ordered = [...data.items].sort((a, b) => b.id.localeCompare(a.id));
+  const rows = ordered.filter((task) => {
     if (filter === 'all') return true;
     if (filter === 'active') return task.status === 'running' || task.status === 'queued';
     return task.status === filter;
@@ -155,7 +158,13 @@ export function TasksPage({ client }: { client: ApiClient }) {
                     {task.finished ? ` / ${task.finished}` : ''}
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    {task.artifact ? <span className="small muted">{task.artifact}</span> : '—'}
+                    {task.result_ready ? (
+                      <button className="btn btn-small" onClick={() => onOpenResult(task.id)}>打开结果</button>
+                    ) : task.artifact ? (
+                      <span className="small muted">{task.artifact}</span>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                 </tr>
               ))}

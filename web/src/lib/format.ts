@@ -32,3 +32,17 @@ export function fmtDate(iso: string): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/** 基础单位「元」→ 展示层亿/万，单位换算只发生在这一层。 */
+export function yuan(value: number): string {
+  if (value >= 1e8) return `${(value / 1e8).toFixed(1)} 亿`;
+  if (value >= 1e4) return `${(value / 1e4).toFixed(1)} 万`;
+  return `${value.toFixed(0)} 元`;
+}
+
+/** 股数缩写（成交量为股）。 */
+export function shares(value: number): string {
+  if (value >= 1e8) return `${(value / 1e8).toFixed(2)} 亿股`;
+  if (value >= 1e4) return `${(value / 1e4).toFixed(1)} 万股`;
+  return `${value} 股`;
+}

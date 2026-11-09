@@ -1,17 +1,54 @@
 import { ApiError } from './types';
-import type { Review, ServiceStatus, TaskList, TaskStatus } from './types';
+import type {
+  AgentMessage,
+  AgentSession,
+  BacktestForm,
+  BacktestOptions,
+  BacktestResult,
+  NewsList,
+  Portfolio,
+  Review,
+  ScreenOptions,
+  ScreenResult,
+  ScreenCondition,
+  ServiceStatus,
+  Stock,
+  TaskItem,
+  TaskList,
+  TaskStatus,
+} from './types';
 
 /** 前端唯一的数据入口。页面与组件只依赖这个接口，不直接读 mock。 */
 export interface ApiClient {
-  getReview(date: string): Promise<Review>;
-  getTasks(query?: { status?: TaskStatus; limit?: number }): Promise<TaskList>;
   getServiceStatus(): Promise<ServiceStatus>;
+
+  getReview(date: string): Promise<Review>;
+  getStock(code: string): Promise<Stock>;
+
+  getScreenOptions(): Promise<ScreenOptions>;
+  runScreen(conditions: ScreenCondition[]): Promise<ScreenResult>;
+
+  getBacktestOptions(): Promise<BacktestOptions>;
+  submitBacktest(form: BacktestForm): Promise<TaskItem>;
+  getBacktestResult(taskId: string): Promise<BacktestResult>;
+
+  getTasks(query?: { status?: TaskStatus; limit?: number }): Promise<TaskList>;
+  getNews(): Promise<NewsList>;
+  getAgentSession(): Promise<AgentSession>;
+  sendAgentMessage(text: string): Promise<AgentMessage>;
+
+  getPortfolio(): Promise<Portfolio>;
+  addWatchlist(code: string): Promise<Portfolio>;
+  addBasket(code: string): Promise<Portfolio>;
 }
 
 /** 真实实现：原生 fetch，无第三方封装。阶段 2 接后端时切换到这里。 */
 export function createHttpClient(baseUrl = '/api'): ApiClient {
-  async function get<T>(path: string): Promise<T> {
-    const res = await fetch(`${baseUrl}${path}`, { headers: { accept: 'application/json' } });
+  async function request<T>(path: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: { accept: 'application/json', 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    });
     if (!res.ok) {
       let code = `HTTP_${res.status}`;
       let message = res.statusText || '请求失败';
@@ -27,13 +64,28 @@ export function createHttpClient(baseUrl = '/api'): ApiClient {
     return (await res.json()) as T;
   }
 
+  const post = <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+
   return {
-    getReview: (date) => get<Review>(`/review?date=${encodeURIComponent(date)}`),
+    getServiceStatus: () => request<ServiceStatus>('/data-status'),
+    getReview: (date) => request<Review>(`/review?date=${encodeURIComponent(date)}`),
+    getStock: (code) => request<Stock>(`/stocks/${encodeURIComponent(code)}`),
+    getScreenOptions: () => request<ScreenOptions>('/screen/options'),
+    runScreen: (conditions) => post<ScreenResult>('/screen', { conditions }),
+    getBacktestOptions: () => request<BacktestOptions>('/backtests/options'),
+    submitBacktest: (form) => post<TaskItem>('/backtests', form),
+    getBacktestResult: (taskId) => request<BacktestResult>(`/backtests/${encodeURIComponent(taskId)}`),
     getTasks: (query) => {
       const params = new URLSearchParams({ limit: String(query?.limit ?? 20) });
       if (query?.status) params.set('status', query.status);
-      return get<TaskList>(`/tasks?${params.toString()}`);
+      return request<TaskList>(`/tasks?${params.toString()}`);
     },
-    getServiceStatus: () => get<ServiceStatus>('/data-status'),
+    getNews: () => request<NewsList>('/news'),
+    getAgentSession: () => request<AgentSession>('/agent/session'),
+    sendAgentMessage: (text) => post<AgentMessage>('/agent/messages', { text }),
+    getPortfolio: () => request<Portfolio>('/portfolio'),
+    addWatchlist: (code) => post<Portfolio>('/portfolio/watchlist', { code }),
+    addBasket: (code) => post<Portfolio>('/portfolio/basket', { code }),
   };
 }

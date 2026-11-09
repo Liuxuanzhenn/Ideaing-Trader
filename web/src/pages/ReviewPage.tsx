@@ -18,11 +18,14 @@ interface Props {
   date: string | null;
   /** 状态接口不可用、退回自然日时为 true */
   dateFallback?: boolean;
+  selectedCode?: string | null;
+  onSelectStock?: (code: string) => void;
+  onOpenStock?: (code: string) => void;
 }
 
 const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
 
-export function ReviewPage({ client, date, dateFallback = false }: Props) {
+export function ReviewPage({ client, date, dateFallback = false, selectedCode = null, onSelectStock, onOpenStock }: Props) {
   const load = useCallback(
     () => (date ? client.getReview(date) : pending<Review>()),
     [client, date],
@@ -138,16 +141,41 @@ export function ReviewPage({ client, date, dateFallback = false }: Props) {
           <div className="card section">
             <div className="card-head">
               <span className="card-title">今日连板</span>
-              <span className="card-sub">示例 · 预览面板为后续阶段</span>
+              <span className="card-sub">单击预览 · 双击打开个股</span>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {data.ladder.map((item) => (
-                <span className="chip" key={item.code}>
-                  <b>{item.ladder} 板</b>
-                  {item.name}
-                </span>
-              ))}
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr><th>股票</th><th className="num">连板</th><th>封板时间</th><th style={{ textAlign: 'right' }}>操作</th></tr>
+                </thead>
+                <tbody>
+                  {data.ladder.map((item) => (
+                    <tr
+                      key={item.code}
+                      className={selectedCode === item.code ? 'selected' : ''}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => onSelectStock?.(item.code)}
+                      onDoubleClick={() => onOpenStock?.(item.code)}
+                    >
+                      <td>
+                        <div className="stock-cell">
+                          <span className="n">{item.name}</span>
+                          <span className="c">{item.code}</span>
+                        </div>
+                      </td>
+                      <td className="num">{item.ladder} 板</td>
+                      <td className="num muted">{item.seal_time ?? '—'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn btn-small" onClick={(event) => { event.stopPropagation(); onOpenStock?.(item.code); }}>
+                          打开
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+            <div className="card-note">封板时间需要分钟线，接口当前返回 null，页面显示「—」。</div>
           </div>
 
           <div className="card section">
