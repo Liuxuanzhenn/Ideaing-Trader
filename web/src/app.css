@@ -567,7 +567,7 @@ table.data.sectors .link-chip { font-size: 13px; }
 /* ---------- 个股 K 线（主图 + 量 + MACD） ---------- */
 .kline { position: relative; }
 .kline-svg { width: 100%; height: auto; display: block; font-family: var(--mono); }
-.kline-svg text { font-size: 12px; }
+.kline-svg text { font-size: 13px; }
 
 .kline-tip {
   position: absolute; top: 8px; left: 8px;
