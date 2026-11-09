@@ -83,6 +83,12 @@ const LADDER = [
   { code: '000977', name: '浪潮信息', ladder: 4, seal_time: null },
   { code: '603083', name: '剑桥科技', ladder: 3, seal_time: null },
   { code: '002230', name: '科大讯飞', ladder: 2, seal_time: null },
+  { code: '300502', name: '新易盛', ladder: 2, seal_time: null },
+  { code: '300474', name: '景嘉微', ladder: 2, seal_time: null },
+  { code: '600410', name: '华胜天成', ladder: 1, seal_time: null },
+  { code: '002123', name: '梦网科技', ladder: 1, seal_time: null },
+  { code: '300229', name: '拓尔思', ladder: 1, seal_time: null },
+  { code: '601595', name: '上海电影', ladder: 1, seal_time: null },
 ];
 
 const NEWS: NewsItem[] = [
@@ -111,6 +117,33 @@ function reviewPayload(state: DemoState): Review {
           touched_up: partial ? null : 89,
           no_limit: 3,
           seal_rate: partial ? null : 0.764,
+        },
+    market: empty
+      ? { amount: 0, new_high_63: 0, new_low_63: 0, prev_limit: { median_pct: 0, up_ratio: 0, samples: 0 } }
+      : {
+          amount: 1.48e12 + 120e8,
+          new_high_63: 108,
+          new_low_63: 119,
+          prev_limit: { median_pct: 5.2, up_ratio: 0.66, samples: 46 },
+        },
+    promotion: empty
+      ? []
+      : [
+          { level: 1, base: 18, promoted: 3, rate: 3 / 18 },
+          { level: 2, base: 6, promoted: 1, rate: 1 / 6 },
+          { level: 3, base: 3, promoted: 1, rate: 1 / 3 },
+          { level: 4, base: 2, promoted: 1, rate: 1 / 2 },
+          { level: 5, base: 1, promoted: 1, rate: 1 },
+        ],
+    prev: empty
+      ? null
+      : {
+          as_of: new Date(Date.now() - 2 * DAY).toISOString(),
+          sealed_up: 46,
+          broken_up: 30,
+          sealed_down: 21,
+          seal_rate: 0.605,
+          amount: 1.42e12,
         },
     ladder: empty ? [] : LADDER,
     news: empty ? [] : NEWS.slice(0, 3),

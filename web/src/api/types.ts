@@ -73,12 +73,46 @@ export interface NewsItem {
   codes: string[];
 }
 
+export interface MarketExtra {
+  /** 两市成交额，单位：元 */
+  amount: number;
+  /** 63 日新高/新低家数 */
+  new_high_63: number;
+  new_low_63: number;
+  /** 昨日涨停股今日表现 */
+  prev_limit: { median_pct: number; up_ratio: number; samples: number };
+}
+
+export interface PromotionStep {
+  /** 昨日连板数 */
+  level: number;
+  /** 昨日该连板家数 */
+  base: number;
+  /** 今日晋级家数 */
+  promoted: number;
+  /** 0–1；无样本 null */
+  rate: number | null;
+}
+
+/** 上一交易日同口径快照，用于算「较前值」 */
+export interface PrevSnapshot {
+  as_of: string;
+  sealed_up: number;
+  broken_up: number | null;
+  sealed_down: number | null;
+  seal_rate: number | null;
+  amount: number;
+}
+
 export interface Review {
   meta: DataMeta;
   is_trading_day: boolean;
   indices: IndexQuote[];
   breadth: Breadth;
   limit: LimitStats;
+  market: MarketExtra;
+  promotion: PromotionStep[];
+  prev: PrevSnapshot | null;
   ladder: LadderRow[];
   news: NewsItem[];
 }

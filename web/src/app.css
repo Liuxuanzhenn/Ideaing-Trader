@@ -401,3 +401,49 @@ table.data .num { text-align: right; }
 /* 键盘可达性：行可聚焦，聚焦环在行内侧 */
 table.data tbody tr:focus-visible { outline: 2px solid #ffffff66; outline-offset: -2px; }
 table.data tbody tr[tabindex] { cursor: pointer; }
+
+/* ---------- 市场看板（复盘首屏） ---------- */
+.market-board .mb-primary { display: flex; align-items: baseline; gap: 34px; flex-wrap: wrap; }
+.mb-metric { display: flex; align-items: baseline; gap: 7px; }
+.mb-metric .k { font-size: 13px; color: var(--muted); }
+.mb-metric .v { font-size: 21px; font-weight: 520; font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
+.mb-metric .d { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.mb-secondary {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+  font-size: 13px; color: var(--muted);
+}
+.mb-secondary b { color: var(--text); font-weight: 520; font-variant-numeric: tabular-nums; }
+.mb-promo { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+.mb-promo em { font-style: normal; color: var(--muted-2); font-size: 12.5px; display: inline-flex; align-items: baseline; gap: 4px; }
+.mb-promo b { color: var(--text); font-size: 13px; }
+
+/* ---------- 连板天梯 ---------- */
+.ladder-rows { display: flex; flex-direction: column; gap: 2px; }
+.ladder-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.ladder-row .lvl {
+  flex: 0 0 auto; min-width: 44px; height: 22px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-variant-numeric: tabular-nums;
+  color: var(--muted); border: 1px solid rgba(255, 255, 255, .10);
+}
+.ladder-row .lvl-hot { color: var(--text); border-color: rgba(255, 255, 255, .24); }
+.ladder-row .bar { flex: 0 0 96px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.ladder-row .bar > i { display: block; height: 100%; background: rgba(255, 255, 255, .35); }
+.ladder-row .names { display: flex; flex-wrap: wrap; gap: 6px; }
+.ladder-chip {
+  height: 26px; padding: 0 10px; border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, .09); background: rgba(255, 255, 255, .04);
+  color: var(--text); font-size: 13px;
+}
+.ladder-chip:hover { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .16); }
+.ladder-chip.selected { border-color: rgba(255, 255, 255, .30); background: rgba(255, 255, 255, .10); }
+.ladder-chip:focus-visible { outline: 2px solid #ffffff66; outline-offset: 1px; }
+
+/* ---------- 右栏资讯 ---------- */
+.ctx-news { display: flex; flex-direction: column; gap: 8px; }
+.ctx-news button { text-align: left; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.ctx-news button:hover { color: var(--text); }
+.ctx-news .t { font-family: var(--mono); font-size: 12px; color: var(--muted-2); margin-right: 6px; }

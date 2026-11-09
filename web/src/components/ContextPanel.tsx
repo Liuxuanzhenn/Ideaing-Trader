@@ -14,6 +14,7 @@ interface Props {
   onAddWatch: (code: string) => void;
   isWatched: boolean;
   onOpenResult: (taskId: string) => void;
+  onOpenNews: () => void;
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -33,12 +34,14 @@ export function ContextPanel({
   onAddWatch,
   isWatched,
   onOpenResult,
+  onOpenNews,
 }: Props) {
   const load = useCallback(
     () => (selectedCode ? client.getStock(selectedCode) : new Promise<never>(() => {})),
     [client, selectedCode],
   );
   const stock = useAsync(load);
+  const news = useAsync(useCallback(() => client.getNews(), [client]));
   const data = status.data;
 
   return (
@@ -90,6 +93,29 @@ export function ContextPanel({
                 </>
               );
             })()
+          )}
+        </div>
+
+        <div className="ctx-section">
+          <div className="ctx-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            资讯
+            <button className="btn btn-small" style={{ marginLeft: 'auto' }} onClick={onOpenNews}>
+              全部
+            </button>
+          </div>
+          {news.phase === 'loading' ? (
+            <div className="small muted">读取中…</div>
+          ) : news.phase === 'error' ? (
+            <div className="small muted">资讯不可用</div>
+          ) : (
+            <div className="ctx-news">
+              {(news.data?.items ?? []).slice(0, 3).map((item) => (
+                <button key={item.id} onClick={onOpenNews}>
+                  <span className="t">{item.published}</span>
+                  {item.title}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

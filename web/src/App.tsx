@@ -198,6 +198,7 @@ export default function App() {
           onAddWatch={addWatch}
           isWatched={selectedCode ? portfolio.watchlist.includes(selectedCode) : false}
           onOpenResult={(taskId) => go('backtest', { view: 'result', taskId })}
+          onOpenNews={() => go('news')}
         />
       </div>
 
