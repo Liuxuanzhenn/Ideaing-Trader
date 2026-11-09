@@ -165,7 +165,7 @@ export function AreaChart({ values }: { values: number[] }) {
   );
 }
 
-/** 迷你趋势：方块卡里的小图，只看形状。 */
+/** 迷你趋势：折线/柱 + 前值虚线参考，极值用 HTML 标签标出（避免 SVG 拉伸导致字号失真）。 */
 export function Spark({
   values,
   kind = 'line',
@@ -176,50 +176,63 @@ export function Spark({
   tone?: string;
 }) {
   const points = values.filter((v): v is number => v !== null);
-  if (points.length < 2) return <div className="spark" />;
-  const W = 120;
-  const H = 40;
+  if (points.length < 2) return <div className="spark-wrap" />;
+  const W = 140;
+  const H = 48;
+  const padTop = 8;
+  const padBottom = 6;
   const min = Math.min(...points);
   const max = Math.max(...points);
   const span = max - min || 1;
   const n = values.length;
+  const yOf = (value: number) => padTop + (1 - (value - min) / span) * (H - padTop - padBottom);
+  const prevY = yOf(points[points.length - 2]);
+  const fmtNum = (v: number) => (Math.abs(v) >= 100 ? Math.round(v).toString() : v.toFixed(1));
 
-  if (kind === 'bar') {
-    const slot = W / n;
-    const bw = Math.max(1.5, slot * 0.62);
-    return (
-      <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-        {values.map((value, index) =>
-          value === null ? null : (
-            <rect
-              key={index}
-              x={index * slot + (slot - bw) / 2}
-              y={H - ((value - min) / span) * (H - 4) - 2}
-              width={bw}
-              height={Math.max(1, ((value - min) / span) * (H - 4))}
-              rx={1}
-              fill={tone}
-              opacity={index === n - 1 ? 0.95 : 0.45}
-            />
-          ),
-        )}
-      </svg>
-    );
-  }
-
-  const x = (index: number) => (index / (n - 1)) * W;
-  const y = (value: number) => H - 2 - ((value - min) / span) * (H - 6);
-  const path = values
-    .map((value, index) => (value === null ? null : `${index && values[index - 1] !== null ? 'L' : 'M'}${x(index).toFixed(1)},${y(value).toFixed(1)}`))
-    .filter(Boolean)
-    .join(' ');
+  const body =
+    kind === 'bar'
+      ? (() => {
+          const slot = W / n;
+          const bw = Math.max(1.5, slot * 0.6);
+          return values.map((value, index) =>
+            value === null ? null : (
+              <rect
+                key={index}
+                x={index * slot + (slot - bw) / 2}
+                y={yOf(value)}
+                width={bw}
+                height={Math.max(1, H - padBottom - yOf(value))}
+                rx={1}
+                fill={tone}
+                opacity={index === n - 1 ? 0.95 : 0.42}
+              />
+            ),
+          );
+        })()
+      : (() => {
+          const x = (index: number) => (index / (n - 1)) * W;
+          const path = values
+            .map((value, index) => (value === null ? null : `${index && values[index - 1] !== null ? 'L' : 'M'}${x(index).toFixed(1)},${yOf(value).toFixed(1)}`))
+            .filter(Boolean)
+            .join(' ');
+          const last = values[n - 1];
+          return (
+            <>
+              {path ? <path d={`${path} L${W},${H - padBottom} L0,${H - padBottom} Z`} fill={tone} opacity={0.10} stroke="none" /> : null}
+              <path d={path} fill="none" stroke={tone} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              {last !== null ? <circle cx={W - 1} cy={yOf(last)} r={2} fill={tone} /> : null}
+            </>
+          );
+        })();
 
   return (
-    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={path} fill="none" stroke={tone} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {values[n - 1] !== null ? (
-        <circle cx={x(n - 1)} cy={y(values[n - 1] as number)} r={1.8} fill={tone} />
-      ) : null}
-    </svg>
+    <div className="spark-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        <line x1={0} y1={prevY} x2={W} y2={prevY} stroke="rgba(255,255,255,.20)" strokeWidth={1} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+        {body}
+      </svg>
+      <span className="spark-hi">{fmtNum(max)}</span>
+      <span className="spark-lo">{fmtNum(min)}</span>
+    </div>
   );
 }
