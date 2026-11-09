@@ -473,3 +473,19 @@ table.data tbody tr[tabindex] { cursor: pointer; }
 /* 板块表：领涨股做成可点胶囊 */
 table.data .link-chip { border: 0; background: none; padding: 0; font-size: 13.5px; color: var(--text); }
 table.data .link-chip:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+/* 天梯：左侧分层 + 右侧行业分布 */
+.ladder-layout { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: 24px; }
+.ladder-row .cnt { flex: 0 0 30px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ladder-chip .ind { margin-left: 7px; font-size: 12px; color: var(--muted-2); }
+.industry-dist { display: flex; flex-direction: column; gap: 9px; padding-left: 20px; border-left: 1px solid rgba(255, 255, 255, .07); }
+.industry-head { font-size: 13px; color: var(--muted); margin-bottom: 2px; }
+.industry-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.industry-row .iname { flex: 0 0 60px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.industry-row .ibar { flex: 1 1 auto; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.industry-row .ibar > i { display: block; height: 100%; background: rgba(255, 255, 255, .35); }
+.industry-row .inum { flex: 0 0 18px; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+@media (max-width: 1024px) {
+  .ladder-layout { grid-template-columns: 1fr; gap: 14px; }
+  .industry-dist { padding-left: 0; border-left: 0; border-top: 1px solid rgba(255, 255, 255, .07); padding-top: 12px; }
+}

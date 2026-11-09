@@ -80,7 +80,14 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
     levels.get(row.ladder)!.push(row);
   }
   const levelKeys = [...levels.keys()].sort((a, b) => b - a);
-  const maxLevelCount = Math.max(1, ...levelKeys.map((k) => levels.get(k)!.length));
+
+  const industryCount = new Map<string, number>();
+  for (const row of data.ladder) {
+    const key = row.industry ?? '未分类';
+    industryCount.set(key, (industryCount.get(key) ?? 0) + 1);
+  }
+  const industries = [...industryCount.entries()].sort((a, b) => b[1] - a[1]);
+  const maxIndustry = Math.max(1, ...industries.map(([, n]) => n));
 
   return (
     <>
@@ -226,37 +233,50 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             {levelKeys.length === 0 ? (
               <div className="small muted">今日没有涨停股</div>
             ) : (
-              <div className="ladder-rows">
-                {levelKeys.map((level) => {
-                  const rows = levels.get(level)!;
-                  return (
-                    <div className="ladder-row" key={level}>
-                      <span className={`lvl ${level >= 4 ? 'lvl-hot' : ''}`}>{level} 板</span>
-                      <span className="bar">
-                        <i style={{ width: `${(rows.length / maxLevelCount) * 100}%` }} />
-                      </span>
-                      <span className="names">
-                        {rows.map((row) => (
-                          <button
-                            key={row.code}
-                            className={`ladder-chip ${selectedCode === row.code ? 'selected' : ''}`}
-                            tabIndex={0}
-                            onClick={() => onSelectStock?.(row.code)}
-                            onDoubleClick={() => onOpenStock?.(row.code)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter') {
-                                event.preventDefault();
-                                onOpenStock?.(row.code);
-                              }
-                            }}
-                          >
-                            {row.name}
-                          </button>
-                        ))}
-                      </span>
+              <div className="ladder-layout">
+                <div className="ladder-rows">
+                  {levelKeys.map((level) => {
+                    const rows = levels.get(level)!;
+                    return (
+                      <div className="ladder-row" key={level}>
+                        <span className={`lvl ${level >= 4 ? 'lvl-hot' : ''}`}>{level} 板</span>
+                        <span className="cnt">×{rows.length}</span>
+                        <span className="names">
+                          {rows.map((row) => (
+                            <button
+                              key={row.code}
+                              className={`ladder-chip ${selectedCode === row.code ? 'selected' : ''}`}
+                              tabIndex={0}
+                              title={row.industry ?? '行业未分类'}
+                              onClick={() => onSelectStock?.(row.code)}
+                              onDoubleClick={() => onOpenStock?.(row.code)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  onOpenStock?.(row.code);
+                                }
+                              }}
+                            >
+                              {row.name}
+                              <span className="ind">{row.industry ?? '未分类'}</span>
+                            </button>
+                          ))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="industry-dist">
+                  <div className="industry-head">行业分布</div>
+                  {industries.map(([name, n]) => (
+                    <div className="industry-row" key={name}>
+                      <span className="iname">{name}</span>
+                      <span className="ibar"><i style={{ width: `${(n / maxIndustry) * 100}%` }} /></span>
+                      <span className="inum">{n}</span>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             )}
           </div>

@@ -80,16 +80,16 @@ const INDICES = [
 ];
 
 const LADDER = [
-  { code: '002261', name: '拓维信息', ladder: 6, seal_time: null },
-  { code: '000977', name: '浪潮信息', ladder: 4, seal_time: null },
-  { code: '603083', name: '剑桥科技', ladder: 3, seal_time: null },
-  { code: '002230', name: '科大讯飞', ladder: 2, seal_time: null },
-  { code: '300502', name: '新易盛', ladder: 2, seal_time: null },
-  { code: '300474', name: '景嘉微', ladder: 2, seal_time: null },
-  { code: '600410', name: '华胜天成', ladder: 1, seal_time: null },
-  { code: '002123', name: '梦网科技', ladder: 1, seal_time: null },
-  { code: '300229', name: '拓尔思', ladder: 1, seal_time: null },
-  { code: '601595', name: '上海电影', ladder: 1, seal_time: null },
+  { code: '002261', name: '拓维信息', ladder: 6, industry: '软件', seal_time: null },
+  { code: '000977', name: '浪潮信息', ladder: 4, industry: '计算机', seal_time: null },
+  { code: '603083', name: '剑桥科技', ladder: 3, industry: '通信', seal_time: null },
+  { code: '002230', name: '科大讯飞', ladder: 2, industry: '软件', seal_time: null },
+  { code: '300502', name: '新易盛', ladder: 2, industry: '通信', seal_time: null },
+  { code: '300474', name: '景嘉微', ladder: 2, industry: '半导体', seal_time: null },
+  { code: '600410', name: '华胜天成', ladder: 1, industry: '计算机', seal_time: null },
+  { code: '002123', name: '梦网科技', ladder: 1, industry: '通信', seal_time: null },
+  { code: '300229', name: '拓尔思', ladder: 1, industry: '软件', seal_time: null },
+  { code: '601595', name: '上海电影', ladder: 1, industry: '传媒', seal_time: null },
 ];
 
 const SECTORS = [

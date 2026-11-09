@@ -57,6 +57,8 @@ export interface LadderRow {
   code: string;
   name: string;
   ladder: number;
+  /** 行业分类尚未验证，不可用时为 null */
+  industry: string | null;
   /** 封板时间需要分钟线，可为 null */
   seal_time: string | null;
 }
