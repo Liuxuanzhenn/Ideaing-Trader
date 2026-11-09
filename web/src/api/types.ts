@@ -121,6 +121,19 @@ export interface ReviewSeries {
   promotion_rate: (number | null)[];
 }
 
+export interface SectorRow {
+  name: string;
+  chg_pct: number;
+  /** 5 日涨跌幅，可算；不足 5 日样本时为 null */
+  chg_5d_pct: number | null;
+  up: number;
+  total: number;
+  limit_up: number;
+  /** 成交额，单位：元 */
+  amount: number;
+  leader: { code: string; name: string; chg_pct: number };
+}
+
 export interface Review {
   meta: DataMeta;
   is_trading_day: boolean;
@@ -131,6 +144,7 @@ export interface Review {
   promotion: PromotionStep[];
   prev: PrevSnapshot | null;
   series: ReviewSeries;
+  sectors: SectorRow[];
   ladder: LadderRow[];
   news: NewsItem[];
 }
