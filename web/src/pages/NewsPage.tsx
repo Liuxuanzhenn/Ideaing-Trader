@@ -19,7 +19,7 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  full: '已抓取全文',
+  full: '全文',
   title: '仅标题',
   failed: '源不可用',
 };
@@ -50,53 +50,61 @@ export function NewsPage({ client, onOpenStock }: { client: ApiClient; onOpenSto
             资讯 / 事件
             <StatusChip level={data.meta.status.level} />
           </h2>
-          <div className="view-sub">消息面工作区 · 数据 as_of {data.meta.as_of.slice(0, 10)}</div>
+          <div className="view-sub">
+            {rows.length} 条 · 数据 {data.meta.as_of.slice(0, 10)}
+          </div>
+        </div>
+        <div className="view-actions">
+          <div className="seg" role="tablist" aria-label="资讯来源筛选">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                role="tab"
+                aria-selected={filter === item.id}
+                className={`seg-item ${filter === item.id ? 'active' : ''}`}
+                onClick={() => setFilter(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {data.meta.status.level === 'stale' ? <StaleBanner meta={data.meta} /> : null}
       {data.meta.status.level === 'partial' ? <PartialBanner meta={data.meta} /> : null}
 
-      <div className="seg" role="tablist" aria-label="资讯来源筛选" style={{ marginBottom: 12 }}>
-        {FILTERS.map((item) => (
-          <button
-            key={item.id}
-            role="tab"
-            aria-selected={filter === item.id}
-            className={`seg-item ${filter === item.id ? 'active' : ''}`}
-            onClick={() => setFilter(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
       <div className="card">
         {data.items.length === 0 ? (
-          <EmptyBlock title="暂无资讯" description="接口返回 items 为空数组，不是请求失败。" />
+          <EmptyBlock title="暂无资讯" description="当前没有抓取到条目。" />
         ) : rows.length === 0 ? (
-          <EmptyBlock title="该来源下暂无资讯" description="切换上方来源筛选查看其他条目。" />
+          <EmptyBlock title="该来源下暂无资讯" description="换一个来源筛选。" />
         ) : (
-          rows.map((item) => (
-            <div className="news-row" key={item.id}>
-              <span className={`tag ${item.status === 'full' ? 'tag-ok' : item.status === 'title' ? 'tag-warn' : 'tag-bad'}`}>
-                {STATUS_LABEL[item.status]}
-              </span>
-              <div className="news-main">
-                <div>{item.title}</div>
-                <div className="news-meta">
-                  <span>{item.source}</span>
-                  <span className="num">{item.published}</span>
-                  <span>{SOURCE_LABEL[item.reason_source]}</span>
+          <div className="news-list2">
+            {rows.map((item) => (
+              <article className="news-row2" key={item.id}>
+                <div className="ntime">{item.published}</div>
+                <div className="nmain">
+                  <div className="ntitle">{item.title}</div>
+                  <div className="nmeta">
+                    <span>{item.source}</span>
+                    <span className="ndot" aria-hidden="true">·</span>
+                    <span>{SOURCE_LABEL[item.reason_source]}</span>
+                    <span className={`tag ${item.status === 'failed' ? 'tag-bad' : ''}`}>
+                      {STATUS_LABEL[item.status]}
+                    </span>
+                  </div>
                 </div>
-                <div className="news-links">
+                <div className="ncodes">
                   {item.codes.map((code) => (
-                    <button className="link-chip" key={code} onClick={() => onOpenStock(code)}>{code}</button>
+                    <button className="link-chip" key={code} onClick={() => onOpenStock(code)}>
+                      {code}
+                    </button>
                   ))}
                 </div>
-              </div>
-            </div>
-          ))
+              </article>
+            ))}
+          </div>
         )}
       </div>
     </>

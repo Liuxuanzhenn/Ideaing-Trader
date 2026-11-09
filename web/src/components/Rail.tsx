@@ -1,4 +1,5 @@
 import type { RouteId } from '../routes';
+import { RouteIcon } from './RouteIcon';
 import { ROUTES } from '../routes';
 
 interface Props {
@@ -21,7 +22,7 @@ export function Rail({ active, onChange, runningCount }: Props) {
               aria-current={active === route.id ? 'page' : undefined}
               onClick={() => onChange(route.id)}
             >
-              <span className="nav-mark" aria-hidden="true">{route.mark}</span>
+              <span className="nav-ico" aria-hidden="true"><RouteIcon name={route.id} /></span>
               <span>{route.label}</span>
             </button>
           ))}
@@ -37,7 +38,7 @@ export function Rail({ active, onChange, runningCount }: Props) {
               aria-current={active === route.id ? 'page' : undefined}
               onClick={() => onChange(route.id)}
             >
-              <span className="nav-mark" aria-hidden="true">{route.mark}</span>
+              <span className="nav-ico" aria-hidden="true"><RouteIcon name={route.id} /></span>
               <span>{route.label}</span>
               {route.id === 'tasks' && runningCount > 0 ? <span className="nav-badge">{runningCount}</span> : null}
             </button>

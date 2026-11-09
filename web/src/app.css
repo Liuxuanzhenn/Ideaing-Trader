@@ -145,6 +145,9 @@ b, strong { font-weight: 520; }
 .nav-item:hover { background: var(--panel-2); color: var(--text); }
 .nav-item.active { background: var(--panel-2); color: var(--text); }
 .nav-mark { width: 16px; text-align: center; opacity: .7; font-size: 13px; }
+.nav-ico { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; opacity: .72; color: currentColor; }
+.nav-ico svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item.active .nav-ico, .nav-item:hover .nav-ico { opacity: 1; }
 .nav-badge { margin-left: auto; color: var(--muted-2); font-size: 13px; }
 .rail-footer {
   flex: 0 0 auto; display: flex; align-items: center; gap: 7px;
@@ -488,4 +491,39 @@ table.data .link-chip:hover { color: var(--text); text-decoration: underline; te
 @media (max-width: 1024px) {
   .ladder-layout { grid-template-columns: 1fr; gap: 14px; }
   .industry-dist { padding-left: 0; border-left: 0; border-top: 1px solid rgba(255, 255, 255, .07); padding-top: 12px; }
+}
+
+/* 天梯两栏：左对齐到固定列，右侧行业分布做成内嵌块 */
+.ladder-layout { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 22px; align-items: start; }
+.ladder-row { display: grid; grid-template-columns: 48px 30px minmax(0, 1fr); gap: 12px; align-items: center; padding: 3px 0; }
+.ladder-row .lvl { justify-self: start; }
+.ladder-row .cnt { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.industry-dist {
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, .025);
+  border: 1px solid rgba(255, 255, 255, .06);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.industry-dist .industry-head { font-size: 12.5px; color: var(--muted); margin-bottom: 2px; }
+
+/* 资讯：时间栏 + 标题 + 关联股票 */
+.news-list2 { display: flex; flex-direction: column; }
+.news-row2 {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 16px; align-items: start;
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  transition: background .14s var(--ease);
+}
+.news-row2:last-child { border-bottom: 0; }
+.news-row2:hover { background: rgba(255, 255, 255, .022); }
+.news-row2 .ntime { font-family: var(--mono); font-size: 13px; color: var(--muted); padding-top: 1px; }
+.news-row2 .nmain { min-width: 0; }
+.news-row2 .ntitle { font-size: 14.5px; line-height: 1.5; color: var(--text); }
+.news-row2 .nmeta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--muted-2); flex-wrap: wrap; }
+.news-row2 .ndot { color: var(--muted-2); }
+.news-row2 .ncodes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 220px; }
+@media (max-width: 1024px) {
+  .news-row2 { grid-template-columns: 56px minmax(0, 1fr); }
+  .news-row2 .ncodes { grid-column: 2; justify-content: flex-start; max-width: none; }
 }

@@ -1,11 +1,11 @@
 export const ROUTES = [
-  { id: 'review', label: '复盘', mark: '复', group: 'workbench' },
-  { id: 'stock', label: '个股', mark: '股', group: 'workbench' },
-  { id: 'screener', label: '筛选', mark: '筛', group: 'workbench' },
-  { id: 'backtest', label: '回测', mark: '测', group: 'workbench' },
-  { id: 'news', label: '资讯', mark: '讯', group: 'workbench' },
-  { id: 'tasks', label: '任务', mark: '任', group: 'tool' },
-  { id: 'agent', label: 'Agent', mark: 'A', group: 'tool' },
+  { id: 'review', label: '复盘', group: 'workbench' },
+  { id: 'stock', label: '个股', group: 'workbench' },
+  { id: 'screener', label: '筛选', group: 'workbench' },
+  { id: 'backtest', label: '回测', group: 'workbench' },
+  { id: 'news', label: '资讯', group: 'workbench' },
+  { id: 'tasks', label: '任务', group: 'tool' },
+  { id: 'agent', label: 'Agent', group: 'tool' },
 ] as const;
 
 export type RouteId = (typeof ROUTES)[number]['id'];
