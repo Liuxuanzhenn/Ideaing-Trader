@@ -126,7 +126,6 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
   const data = stock.data!;
   const inWatch = portfolio.watchlist.includes(data.code);
   const inBasket = portfolio.basket.includes(data.code);
-  const lowOpen = data.stats.low_open.rate;
 
   return (
     <>
@@ -162,67 +161,87 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
       {data.meta.status.level === 'stale' ? <StaleBanner meta={data.meta} /> : null}
       {data.meta.status.level === 'partial' ? <PartialBanner meta={data.meta} /> : null}
 
-      <div className="card section">
-        <div className="card-head">
-          <span className="card-title">关键统计</span>
-          
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
-          <div>
-            <div className="small muted">现价</div>
-            <div className={`stat-line ${toneOf(data.chg_pct)}`}>
-              {fmt(data.price)} <span className="small">{pct(data.chg_pct)}</span>
-            </div>
-          </div>
-          <div>
-            <div className="small muted">近 20 日涨幅</div>
-            <div className={`stat-line ${toneOf(data.stats.chg_20d_pct)}`}>{pct(data.stats.chg_20d_pct)}</div>
-          </div>
-          <div>
-            <div className="small muted">低开高走率</div>
-            <div className="stat-line">{lowOpen === null ? '—' : `${(lowOpen * 100).toFixed(1)}%`}</div>
-            <div className="small muted">{data.stats.low_open.hits}/{data.stats.low_open.samples} 笔</div>
-          </div>
-          <div>
-            <div className="small muted">近 250 日涨停</div>
-            <div className="stat-line">{data.stats.limit_250} 次</div>
-          </div>
-        </div>
-      </div>
-
       {(() => {
         const range = rangeStats(data.candles);
-        if (!range) return null;
-        const cell = (label: string, value: number | null, tone = true) => (
-          <div className="range-cell" key={label}>
+        const cell = (
+          label: string,
+          value: string,
+          extra?: { text: string; tone?: string },
+          span = false,
+        ) => (
+          <div className={`mtile ${span ? 'span2' : ''}`} key={label}>
             <span className="k">{label}</span>
-            <span className={`v ${tone && value !== null ? toneOf(value) : ''}`}>
-              {value === null ? '—' : pct(value)}
-            </span>
+            <span className="v">{value}</span>
+            {extra ? <span className={`s ${extra.tone ?? ''}`}>{extra.text}</span> : <span className="s" />}
           </div>
         );
+        const pctCell = (label: string, value: number | null, span = false) =>
+          cell(
+            label,
+            value === null ? '—' : pct(value),
+            undefined,
+            span,
+          );
         return (
           <div className="card section">
             <div className="card-head">
-              <span className="card-title">区间表现</span>
+              <span className="card-title">关键统计与区间表现</span>
               <span className="card-sub">按收盘价计算</span>
             </div>
-            <div className="range-row">
-              {cell('5 日', range.d5)}
-              {cell('10 日', range.d10)}
-              {cell('20 日', range.d20)}
-              {cell('60 日', range.d60)}
-              <div className="range-cell">
+            <div className="mosaic">
+              <div className="mtile span2">
+                <span className="k">现价</span>
+                <span className={`v ${toneOf(data.chg_pct)}`}>{fmt(data.price)}</span>
+                <span className={`s ${toneOf(data.chg_pct)}`}>{pct(data.chg_pct)}</span>
+              </div>
+              {pctCell('近 20 日', data.stats.chg_20d_pct)}
+              {pctCell('5 日', range?.d5 ?? null)}
+              {pctCell('10 日', range?.d10 ?? null)}
+              {pctCell('60 日', range?.d60 ?? null)}
+              <div className="mtile">
+                <span className="k">低开高走率</span>
+                <span className="v">
+                  {data.stats.low_open.rate === null ? '—' : `${(data.stats.low_open.rate * 100).toFixed(1)}%`}
+                </span>
+                <span className="s">
+                  {data.stats.low_open.hits}/{data.stats.low_open.samples} 笔
+                </span>
+              </div>
+              <div className="mtile">
+                <span className="k">近 250 日涨停</span>
+                <span className="v">{data.stats.limit_250}</span>
+                <span className="s">次</span>
+              </div>
+
+              <div className="mtile">
+                <span className="k">最高连板</span>
+                <span className="v">{data.stats.max_ladder}<small>板</small></span>
+                <span className="s" />
+              </div>
+              <div className="mtile">
                 <span className="k">振幅</span>
-                <span className="v">{range.amplitude.toFixed(2)}%</span>
+                <span className="v">{range ? `${range.amplitude.toFixed(2)}%` : '—'}</span>
+                <span className="s" />
               </div>
-              <div className="range-cell">
+              <div className="mtile">
                 <span className="k">量比</span>
-                <span className="v">{range.volRatio === null ? '—' : range.volRatio.toFixed(2)}</span>
+                <span className="v">{range?.volRatio == null ? '—' : range.volRatio.toFixed(2)}</span>
+                <span className="s" />
               </div>
-              <div className="range-cell">
+              <div className="mtile">
                 <span className="k">20 日波动率</span>
-                <span className="v">{range.volatility.toFixed(1)}%</span>
+                <span className="v">{range ? `${range.volatility.toFixed(1)}%` : '—'}</span>
+                <span className="s" />
+              </div>
+              <div className="mtile">
+                <span className="k">成交额</span>
+                <span className="v">{yuan(data.amount)}</span>
+                <span className="s">换手 {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`}</span>
+              </div>
+              <div className="mtile">
+                <span className="k">流通市值</span>
+                <span className="v">{data.mcap === null ? '—' : yuan(data.mcap)}</span>
+                <span className="s">{data.industry ?? '行业未分类'}</span>
               </div>
             </div>
           </div>
