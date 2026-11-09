@@ -192,3 +192,36 @@ class SnapshotManifestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DelistingEdgeTests(unittest.TestCase):
+    def test_traded_bar_without_volume_is_rejected(self) -> None:
+        """The last session before delisting can report tradestatus=1 with no volume."""
+        with self.assertRaises(ValueError):
+            DailyBar(
+                symbol="600656",
+                trade_date=date(2016, 5, 12),
+                open=Decimal("4.49"),
+                high=Decimal("4.49"),
+                low=Decimal("4.49"),
+                close=Decimal("4.49"),
+                volume=Decimal("0"),
+                amount=Decimal("0"),
+                preclose=Decimal("4.49"),
+                trading=True,
+            )
+
+    def test_zero_volume_row_is_modelled_as_not_trading(self) -> None:
+        bar = DailyBar(
+            symbol="600656",
+            trade_date=date(2016, 5, 12),
+            open=Decimal("4.49"),
+            high=Decimal("4.49"),
+            low=Decimal("4.49"),
+            close=Decimal("4.49"),
+            volume=Decimal("0"),
+            amount=Decimal("0"),
+            preclose=Decimal("4.49"),
+            trading=False,
+        )
+        self.assertFalse(bar.trading)

@@ -78,7 +78,13 @@ class DailyBar:
 
     Sources carry a suspended day's close forward, so a bar with trading=False has
     a reference price but no tradable OHLC; only its price fields are unchecked.
+
+    `trading` means "shares actually changed hands today", derived by the adapter as
+    source tradestatus and a positive volume. Sources disagree at the edges: the last
+    session before delisting can carry tradestatus=1 with no volume and a
+    carried-forward close, which must not be treated as a tradable bar.
     """
+
 
     symbol: str
     trade_date: date
@@ -107,6 +113,8 @@ class DailyBar:
             _require_non_negative(self.preclose, "preclose")
         if not isinstance(self.trading, bool):
             raise TypeError("trading must be a bool")
+        if self.trading and self.volume <= 0:
+            raise ValueError("a traded bar must carry positive volume")
         if not isinstance(self.is_st, bool):
             raise TypeError("is_st must be a bool")
         if self.turn is not None:
