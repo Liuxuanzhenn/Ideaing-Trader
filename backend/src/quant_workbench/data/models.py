@@ -65,7 +65,11 @@ class Instrument:
 
 @dataclass(frozen=True, slots=True)
 class DailyBar:
-    """One unambiguous daily bar; adjustment is a dataset-level choice."""
+    """One unambiguous daily bar; adjustment is a dataset-level choice.
+
+    Trading state and ST flag live on the bar because baostock reports them per
+    day; deriving status history from bars avoids a second source of truth.
+    """
 
     symbol: str
     trade_date: date
@@ -76,6 +80,9 @@ class DailyBar:
     volume: Decimal
     amount: Decimal
     adjustment: str = "none"
+    preclose: Decimal | None = None
+    trading: bool = True
+    is_st: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "symbol", _require_text(self.symbol, "symbol"))
@@ -86,6 +93,14 @@ class DailyBar:
             _require_non_negative(getattr(self, field), field)
         _require_non_negative(self.volume, "volume")
         _require_non_negative(self.amount, "amount")
+        if self.preclose is not None:
+            _require_non_negative(self.preclose, "preclose")
+        if not isinstance(self.trading, bool):
+            raise TypeError("trading must be a bool")
+        if not isinstance(self.is_st, bool):
+            raise TypeError("is_st must be a bool")
+        if not self.trading and self.volume != 0:
+            raise ValueError("a suspended bar cannot carry volume")
         if self.high < max(self.open, self.close) or self.low > min(self.open, self.close):
             raise ValueError("high/low must contain open and close")
         if self.adjustment not in {"none", "forward", "backward"}:

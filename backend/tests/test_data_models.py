@@ -62,6 +62,33 @@ class DailyBarTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             TradingCalendarEntry(date(2026, 11, 6), 1)
 
+    def test_suspended_bar_must_have_zero_volume(self) -> None:
+        bar = DailyBar(
+            symbol="600000",
+            trade_date=date(2026, 11, 6),
+            open=Decimal("10.0"),
+            high=Decimal("10.0"),
+            low=Decimal("10.0"),
+            close=Decimal("10.0"),
+            volume=Decimal("0"),
+            amount=Decimal("0"),
+            trading=False,
+            preclose=Decimal("10.0"),
+        )
+        self.assertFalse(bar.trading)
+        with self.assertRaises(ValueError):
+            DailyBar(
+                symbol="600000",
+                trade_date=date(2026, 11, 6),
+                open=Decimal("10.0"),
+                high=Decimal("10.0"),
+                low=Decimal("10.0"),
+                close=Decimal("10.0"),
+                volume=Decimal("100"),
+                amount=Decimal("1000"),
+                trading=False,
+            )
+
 
 class SnapshotManifestTests(unittest.TestCase):
     def test_id_is_independent_of_partition_order(self) -> None:
