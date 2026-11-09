@@ -377,7 +377,8 @@ function closeModal() { $('#modal-wrap').hidden = true; modalConfirm = null; }
 
 /* ---------- 模块与子功能 ---------- */
 const MODULES = {
-  review: { label: '复盘', subs: [['overview', '复盘总览'], ['news', '资讯 / 事件']] },
+  review: { label: '复盘', subs: [['overview', '复盘总览']] },
+  news: { label: '资讯', subs: [['list', '全部资讯']] },
   stock: { label: '个股', subs: [['overview', '个股详情'], ['watchlist', '观察池'], ['news', '资讯 / 事件']] },
   screener: { label: '筛选', subs: [['list', '条件与结果']] },
   backtest: { label: '回测', subs: [['config', '回测配置'], ['result', '回测结果']] },
@@ -387,7 +388,7 @@ const MODULES = {
 const ROUTE_TO_MODULE = {
   review: ['review', 'overview'], stock: ['stock', 'overview'], watchlist: ['stock', 'watchlist'],
   screener: ['screener', 'list'], backtest: ['backtest', 'config'], result: ['backtest', 'result'],
-  tasks: ['tasks', 'list'], mcp: ['mcp', 'overview'], news: ['review', 'news'],
+  tasks: ['tasks', 'list'], mcp: ['mcp', 'overview'], news: ['news', 'list'],
 };
 
 function setSub(module, sub) {
@@ -395,7 +396,6 @@ function setSub(module, sub) {
   state.module = module;
   state.sub = sub || MODULES[module].subs[0][0];
   if (module === 'stock' && state.sub === 'news') state.newsFilter = state.selectedStock || null;
-  if (module === 'review' && state.sub === 'news') state.newsFilter = null;
   renderAll();
 }
 
@@ -467,7 +467,8 @@ function renderBottom() {
 
 /* ---------- 视图渲染入口 ---------- */
 function viewHtmlFor() {
-  if (state.module === 'review') return state.sub === 'news' ? viewNews() : viewReview();
+  if (state.module === 'review') return viewReview();
+  if (state.module === 'news') return viewNews();
   if (state.module === 'stock') return state.sub === 'watchlist' ? viewWatchlist() : state.sub === 'news' ? viewNews() : viewStock();
   if (state.module === 'screener') return viewScreener();
   if (state.module === 'backtest') return state.sub === 'result' ? viewResult() : viewBacktest();
@@ -625,8 +626,8 @@ function openNews(code = null, id = null) {
   state.newsFilter = code || null;
   state.newsKind = 'all';
   state.newsSelected = id || null;
-  state.module = code ? 'stock' : 'review';
-  state.sub = 'news';
+  state.module = code ? 'stock' : 'news';
+  state.sub = code ? 'news' : 'list';
   renderAll();
 }
 
@@ -2191,7 +2192,7 @@ function handleAction(action, el) {
     case 'agent-preset': sendAgent(el.dataset.text); break;
     case 'agent-confirm': agentConfirm(); break;
     case 'open-news':
-      if (el.dataset.id && state.sub === 'news') { state.newsSelected = el.dataset.id; renderView(); }
+      if (el.dataset.id && (state.module === 'news' || state.sub === 'news')) { state.newsSelected = el.dataset.id; renderView(); }
       else openNews(el.dataset.code || null, el.dataset.id || null);
       break;
     case 'news-kind': state.newsKind = el.dataset.kind; renderView(); break;
