@@ -98,7 +98,6 @@ export function NewsPage({ client, onOpenStock }: { client: ApiClient; onOpenSto
             </div>
           ))
         )}
-        <div className="card-note">来源与发布时间均为 mock；status 为 failed 表示抓取失败，需与「已抓到但无正文」区分。</div>
       </div>
     </>
   );

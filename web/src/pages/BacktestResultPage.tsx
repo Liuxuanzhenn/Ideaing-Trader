@@ -134,7 +134,6 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
             { values: data.benchmark, color: 'var(--muted-2)', label: '沪深 300', dashed: true },
           ]}
         />
-        <div className="card-note">实线为策略，虚线为基准；示例数据。</div>
       </div>
 
       <div className="card section">

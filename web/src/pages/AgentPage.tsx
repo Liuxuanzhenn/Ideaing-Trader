@@ -111,7 +111,6 @@ export function AgentPage({ client, onGoTasks }: { client: ApiClient; onGoTasks:
             {sending ? '发送中…' : '发送'}
           </button>
         </div>
-        <div className="card-note">Agent 回复、工具耗时与任务号均为 mock；写入类工具必须先落任务再回话。</div>
       </div>
     </>
   );

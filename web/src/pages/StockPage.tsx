@@ -155,11 +155,10 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
           </span>
         </div>
         {data.candles.length === 0 ? (
-          <EmptyBlock title="没有 K 线数据" description="接口返回的 candles 为空数组，通常是该标的当日无行情或数据缺口。" />
+          <EmptyBlock title="没有 K 线数据" description="该标的当日没有行情数据。" />
         ) : (
           <Candles candles={data.candles} />
         )}
-        <div className="card-note">前复权 · 示例数据，K 线与成交量均由 mock 生成。</div>
       </div>
     </>
   );
@@ -179,7 +178,7 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
       <div className="card">
         <EmptyBlock
           title="观察池为空"
-          description="从复盘表格、筛选结果或个股页加入后，会出现在这里（当前保存在内存，刷新即清空）。"
+          description="从复盘、筛选或个股页加入观察。"
         />
       </div>
     );
@@ -204,7 +203,7 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
         <span className="card-sub">{rows.length} 只 · 内存态，刷新后清空</span>
       </div>
       {rows.length === 0 ? (
-        <EmptyBlock title="观察池里的标的没有行情" description="接口返回空数组：代码存在但当日无数据。" />
+        <EmptyBlock title="观察池里的标的没有行情" description="这些标的当日没有行情数据。" />
       ) : (
         <div className="table-wrap">
           <table className="data">
@@ -247,7 +246,6 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
           </table>
         </div>
       )}
-      <div className="card-note">观察池目前只存在内存；真实实现走 /api/portfolio，且批量行情走一条批量接口而不是逐票请求。</div>
     </div>
   );
 }

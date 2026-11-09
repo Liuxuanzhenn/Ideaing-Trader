@@ -110,7 +110,7 @@ export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }:
         <div className="card">
           <EmptyBlock
             title="暂无任务"
-            description="接口返回的 items 为空数组，说明当前没有任务记录，而不是请求失败。"
+            description="当前没有任务记录。"
           />
         </div>
       ) : rows.length === 0 ? (
@@ -189,7 +189,6 @@ export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }:
         </div>
       )}
 
-      <div className="card-note">任务数据来自 mock；进度为构造值，接真实接口后由后端进度驱动，前端不做插值。</div>
     </>
   );
 }

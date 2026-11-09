@@ -225,7 +225,6 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
             </div>
           </>
         )}
-        <div className="card-note">结果为 mock 数据；分页与排序在阶段 1 由前端处理，接口已预留 page/page_size。</div>
       </div>
     </>
   );

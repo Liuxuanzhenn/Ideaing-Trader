@@ -179,7 +179,6 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                 </tbody>
               </table>
             </div>
-            <div className="card-note">封板时间需要分钟线，接口当前返回 null，页面显示「—」。</div>
           </div>
 
           <div className="card section">
@@ -202,7 +201,6 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                 </div>
               ))
             )}
-            <div className="card-note">来源、发布时间与抓取状态均为 mock；真实接口中 reason_source 需与 reason 文本分开标注。</div>
           </div>
         </>
       )}

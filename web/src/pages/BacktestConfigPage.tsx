@@ -154,7 +154,6 @@ export function BacktestConfigPage({ client, onSubmitted }: Props) {
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, color: 'var(--muted-2)', lineHeight: 1.9 }}>
           {data.assumptions.map((item) => <li key={item}>{item}</li>)}
         </ul>
-        <div className="card-note">假设文本由接口返回，报告页与配置页共用同一份，避免两处不一致。</div>
       </div>
     </>
   );
