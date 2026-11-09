@@ -45,22 +45,28 @@ def _canonical_partition(value: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Instrument:
-    """A security identity; status history belongs in a separate dataset."""
+    """A security identity; per-day ST and trading state live on DailyBar.
+
+    Delisted instruments are kept so backtests do not inherit survivorship bias.
+    """
 
     symbol: str
     name: str
     exchange: str
     board: str
     listed_on: date
-    is_st: bool = False
+    delisted_on: date | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "symbol", _require_text(self.symbol, "symbol"))
         object.__setattr__(self, "name", _require_text(self.name, "name"))
         object.__setattr__(self, "exchange", _require_text(self.exchange, "exchange"))
-        if not isinstance(self.is_st, bool):
-            raise TypeError("is_st must be a bool")
+        object.__setattr__(self, "board", _require_text(self.board, "board"))
         _require_date(self.listed_on, "listed_on")
+        if self.delisted_on is not None:
+            _require_date(self.delisted_on, "delisted_on")
+            if self.delisted_on < self.listed_on:
+                raise ValueError("delisted_on must not precede listed_on")
 
 
 @dataclass(frozen=True, slots=True)

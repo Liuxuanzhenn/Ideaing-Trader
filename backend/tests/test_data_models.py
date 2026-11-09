@@ -2,7 +2,36 @@ import unittest
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from quant_workbench.data import DailyBar, SnapshotManifest, TradingCalendarEntry
+from quant_workbench.data import (
+    DailyBar,
+    Instrument,
+    SnapshotManifest,
+    TradingCalendarEntry,
+)
+
+
+class InstrumentTests(unittest.TestCase):
+    def test_delisted_instrument_keeps_out_date(self) -> None:
+        instrument = Instrument(
+            symbol="600087",
+            name="退市样本",
+            exchange="SH",
+            board="main",
+            listed_on=date(1997, 6, 20),
+            delisted_on=date(2014, 6, 5),
+        )
+        self.assertEqual(instrument.delisted_on, date(2014, 6, 5))
+
+    def test_delisting_before_listing_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            Instrument(
+                symbol="600087",
+                name="退市样本",
+                exchange="SH",
+                board="main",
+                listed_on=date(2014, 6, 5),
+                delisted_on=date(2014, 6, 4),
+            )
 
 
 class DailyBarTests(unittest.TestCase):
