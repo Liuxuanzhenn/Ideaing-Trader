@@ -2,6 +2,74 @@ import { useMemo, useRef, useState } from 'react';
 import type { Candle } from '../api/types';
 import { fmt, pct } from '../lib/format';
 
+export type KPeriod = 'day' | 'week' | 'month';
+export type KIndicator = 'macd' | 'kdj' | 'rsi';
+
+/** 日线聚合成周/月（按 5 / 20 个交易日近似，真实实现由后端按自然周月聚合）。 */
+function aggregate(candles: Candle[], period: KPeriod): Candle[] {
+  if (period === 'day') return candles;
+  const size = period === 'week' ? 5 : 20;
+  const out: Candle[] = [];
+  for (let i = 0; i < candles.length; i += size) {
+    const chunk = candles.slice(i, i + size);
+    if (chunk.length === 0) continue;
+    out.push({
+      date: chunk[chunk.length - 1].date,
+      open: chunk[0].open,
+      close: chunk[chunk.length - 1].close,
+      high: Math.max(...chunk.map((c) => c.high)),
+      low: Math.min(...chunk.map((c) => c.low)),
+      volume: chunk.reduce((sum, c) => sum + c.volume, 0),
+    });
+  }
+  return out;
+}
+
+/** KDJ(9,3,3) */
+function kdj(candles: Candle[]) {
+  const k: number[] = [];
+  const d: number[] = [];
+  const j: number[] = [];
+  let prevK = 50;
+  let prevD = 50;
+  candles.forEach((candle, i) => {
+    const from = Math.max(0, i - 8);
+    const window = candles.slice(from, i + 1);
+    const hh = Math.max(...window.map((c) => c.high));
+    const ll = Math.min(...window.map((c) => c.low));
+    const rsv = hh === ll ? 50 : ((candle.close - ll) / (hh - ll)) * 100;
+    prevK = (2 / 3) * prevK + (1 / 3) * rsv;
+    prevD = (2 / 3) * prevD + (1 / 3) * prevK;
+    k.push(prevK);
+    d.push(prevD);
+    j.push(3 * prevK - 2 * prevD);
+  });
+  return { k, d, j };
+}
+
+/** RSI(14)，Wilder 平滑 */
+function rsi(closes: number[], span = 14): number[] {
+  const out: number[] = [];
+  let gain = 0;
+  let loss = 0;
+  for (let i = 0; i < closes.length; i += 1) {
+    if (i === 0) { out.push(50); continue; }
+    const diff = closes[i] - closes[i - 1];
+    const up = Math.max(0, diff);
+    const down = Math.max(0, -diff);
+    if (i <= span) {
+      gain += up;
+      loss += down;
+      out.push(50);
+    } else {
+      gain = (gain * (span - 1) + up) / span;
+      loss = (loss * (span - 1) + down) / span;
+      out.push(loss === 0 ? 100 : 100 - 100 / (1 + gain / loss));
+    }
+  }
+  return out;
+}
+
 const W = 900;
 const MAIN_TOP = 8;
 const MAIN_H = 232;
@@ -36,7 +104,16 @@ function sma(values: number[], span: number): (number | null)[] {
 }
 
 /** 通达信风格：主图 K 线 + 均线，副图成交量与 MACD，鼠标悬停出十字光标与浮窗。 */
-export function StockChart({ candles }: { candles: Candle[] }) {
+export function StockChart({
+  candles: raw,
+  period = 'day',
+  indicator = 'macd',
+}: {
+  candles: Candle[];
+  period?: KPeriod;
+  indicator?: KIndicator;
+}) {
+  const candles = useMemo(() => aggregate(raw, period), [raw, period]);
   const [hover, setHover] = useState<number | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +134,9 @@ export function StockChart({ candles }: { candles: Candle[] }) {
     const lo = priceMin - pad;
     const hi = priceMax + pad;
     const macdMax = Math.max(...macd.map(Math.abs), 0.001);
-    return { closes, ma5, ma10, ma20, ma60, dif, dea, macd, lo, hi, macdMax };
+    const kdjData = kdj(candles);
+    const rsiData = rsi(closes);
+    return { closes, ma5, ma10, ma20, ma60, dif, dea, macd, lo, hi, macdMax, kdjData, rsiData };
   }, [candles]);
 
   if (candles.length === 0) return null;
@@ -70,6 +149,7 @@ export function StockChart({ candles }: { candles: Candle[] }) {
   const maxVol = Math.max(...candles.map((c) => c.volume), 1);
   const yVol = (v: number) => VOL_TOP + VOL_H - (v / maxVol) * VOL_H;
   const yMacd = (v: number) => MACD_TOP + MACD_H / 2 - (v / model.macdMax) * (MACD_H / 2 - 4);
+  const yPct = (v: number) => MACD_TOP + MACD_H - (Math.max(0, Math.min(100, v)) / 100) * MACD_H;
 
   const line = (values: (number | null)[], toY: (v: number) => number) =>
     values
@@ -143,21 +223,40 @@ export function StockChart({ candles }: { candles: Candle[] }) {
           />
         ))}
 
-        {/* MACD */}
+        {/* 副图指标 */}
         <line x1={LEFT} y1={MACD_TOP + MACD_H / 2} x2={W - RIGHT} y2={MACD_TOP + MACD_H / 2} stroke="rgba(255,255,255,.08)" />
-        {model.macd.map((v, i) => (
-          <rect
-            key={`m${candles[i].date}`}
-            x={x(i) - bodyW / 2}
-            y={Math.min(yMacd(v), MACD_TOP + MACD_H / 2)}
-            width={bodyW}
-            height={Math.abs(yMacd(v) - (MACD_TOP + MACD_H / 2)) || 0.5}
-            fill={v >= 0 ? 'var(--up)' : 'var(--down)'}
-            opacity={0.55}
-          />
-        ))}
-        <path d={line(model.dif, yMacd)} fill="none" stroke="var(--text)" strokeWidth={1.1} />
-        <path d={line(model.dea, yMacd)} fill="none" stroke="var(--muted)" strokeWidth={1.1} strokeDasharray="3 3" />
+        {indicator === 'macd' ? (
+          <>
+            {model.macd.map((v, i) => (
+              <rect
+                key={`m${candles[i].date}`}
+                x={x(i) - bodyW / 2}
+                y={Math.min(yMacd(v), MACD_TOP + MACD_H / 2)}
+                width={bodyW}
+                height={Math.abs(yMacd(v) - (MACD_TOP + MACD_H / 2)) || 0.5}
+                fill={v >= 0 ? 'var(--up)' : 'var(--down)'}
+                opacity={0.55}
+              />
+            ))}
+            <path d={line(model.dif, yMacd)} fill="none" stroke="var(--text)" strokeWidth={1.1} />
+            <path d={line(model.dea, yMacd)} fill="none" stroke="var(--muted)" strokeWidth={1.1} strokeDasharray="3 3" />
+          </>
+        ) : indicator === 'kdj' ? (
+          <>
+            <path d={line(model.kdjData.k, yPct)} fill="none" stroke="var(--text)" strokeWidth={1.1} />
+            <path d={line(model.kdjData.d, yPct)} fill="none" stroke="var(--muted)" strokeWidth={1.1} strokeDasharray="3 3" />
+            <path d={line(model.kdjData.j, yPct)} fill="none" stroke="var(--muted-2)" strokeWidth={1} opacity={0.8} />
+            <text x={LEFT + 2} y={MACD_TOP + 11} fill="var(--muted-2)">K/D/J 80 以上超买</text>
+          </>
+        ) : (
+          <>
+            <path d={line(model.rsiData, yPct)} fill="none" stroke="var(--text)" strokeWidth={1.2} />
+            <line x1={LEFT} y1={yPct(70)} x2={W - RIGHT} y2={yPct(70)} stroke="rgba(255,255,255,.10)" strokeDasharray="3 4" />
+            <line x1={LEFT} y1={yPct(30)} x2={W - RIGHT} y2={yPct(30)} stroke="rgba(255,255,255,.10)" strokeDasharray="3 4" />
+            <text x={LEFT + 2} y={yPct(70) - 4} fill="var(--muted-2)">70</text>
+            <text x={LEFT + 2} y={yPct(30) + 12} fill="var(--muted-2)">30</text>
+          </>
+        )}
 
         {/* 日期刻度 */}
         {candles.map((candle, i) =>
@@ -199,8 +298,23 @@ export function StockChart({ candles }: { candles: Candle[] }) {
             <span>量</span><b>{(active.volume / 1e4).toFixed(1)} 万手</b>
             <span>MA5</span><b>{model.ma5[hover!] === null ? '—' : fmt(model.ma5[hover!]!)}</b>
             <span>MA20</span><b>{model.ma20[hover!] === null ? '—' : fmt(model.ma20[hover!]!)}</b>
-            <span>DIF</span><b>{model.dif[hover!].toFixed(3)}</b>
-            <span>DEA</span><b>{model.dea[hover!].toFixed(3)}</b>
+            {indicator === 'macd' ? (
+              <>
+                <span>DIF</span><b>{model.dif[hover!].toFixed(3)}</b>
+                <span>DEA</span><b>{model.dea[hover!].toFixed(3)}</b>
+              </>
+            ) : indicator === 'kdj' ? (
+              <>
+                <span>K</span><b>{model.kdjData.k[hover!].toFixed(1)}</b>
+                <span>D</span><b>{model.kdjData.d[hover!].toFixed(1)}</b>
+                <span>J</span><b>{model.kdjData.j[hover!].toFixed(1)}</b>
+                <span />
+              </>
+            ) : (
+              <>
+                <span>RSI14</span><b>{model.rsiData[hover!].toFixed(1)}</b>
+              </>
+            )}
           </div>
         </div>
       ) : null}

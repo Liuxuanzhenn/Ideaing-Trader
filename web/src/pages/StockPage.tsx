@@ -1,8 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ApiClient } from '../api/client';
 import type { Portfolio } from '../api/types';
 import { useAsync } from '../lib/useAsync';
-import { StockChart } from '../components/StockChart';
+import { StockChart, type KIndicator, type KPeriod } from '../components/StockChart';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
 import { fmt, pct, toneOf, yuan } from '../lib/format';
 
@@ -49,12 +49,53 @@ export function StockPage(props: Props) {
   );
 }
 
+function rangeStats(candles: { close: number; high: number; low: number; volume: number }[]) {
+  if (candles.length < 2) return null;
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+  const ret = (n: number) => {
+    const base = candles[candles.length - 1 - n];
+    return base ? ((last.close / base.close) - 1) * 100 : null;
+  };
+  const vols = candles.slice(-6, -1).map((c) => c.volume);
+  const avgVol = vols.length ? vols.reduce((sum, v) => sum + v, 0) / vols.length : 0;
+  const rets: number[] = [];
+  for (let i = Math.max(1, candles.length - 20); i < candles.length; i += 1) {
+    rets.push((candles[i].close / candles[i - 1].close - 1) * 100);
+  }
+  const mean = rets.reduce((sum, v) => sum + v, 0) / (rets.length || 1);
+  const variance = rets.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (rets.length || 1);
+  return {
+    d5: ret(5),
+    d10: ret(10),
+    d20: ret(20),
+    d60: ret(60),
+    amplitude: ((last.high - last.low) / prev.close) * 100,
+    volRatio: avgVol ? last.volume / avgVol : null,
+    volatility: Math.sqrt(variance) * Math.sqrt(252),
+  };
+}
+
+const PERIODS: { id: KPeriod; label: string }[] = [
+  { id: 'day', label: '日' },
+  { id: 'week', label: '周' },
+  { id: 'month', label: '月' },
+];
+const INDICATORS: { id: KIndicator; label: string }[] = [
+  { id: 'macd', label: 'MACD' },
+  { id: 'kdj', label: 'KDJ' },
+  { id: 'rsi', label: 'RSI' },
+];
+
 function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props) {
+  const [period, setPeriod] = useState<KPeriod>('day');
+  const [indicator, setIndicator] = useState<KIndicator>('macd');
   const load = useCallback(
     () => (code ? client.getStock(code) : new Promise<never>(() => {})),
     [client, code],
   );
   const stock = useAsync(load);
+  const news = useAsync(useCallback(() => client.getNews(), [client]));
 
   if (!code) {
     return (
@@ -149,17 +190,113 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
         </div>
       </div>
 
+      {(() => {
+        const range = rangeStats(data.candles);
+        if (!range) return null;
+        const cell = (label: string, value: number | null, tone = true) => (
+          <div className="range-cell" key={label}>
+            <span className="k">{label}</span>
+            <span className={`v ${tone && value !== null ? toneOf(value) : ''}`}>
+              {value === null ? '—' : pct(value)}
+            </span>
+          </div>
+        );
+        return (
+          <div className="card section">
+            <div className="card-head">
+              <span className="card-title">区间表现</span>
+              <span className="card-sub">按收盘价计算</span>
+            </div>
+            <div className="range-row">
+              {cell('5 日', range.d5)}
+              {cell('10 日', range.d10)}
+              {cell('20 日', range.d20)}
+              {cell('60 日', range.d60)}
+              <div className="range-cell">
+                <span className="k">振幅</span>
+                <span className="v">{range.amplitude.toFixed(2)}%</span>
+              </div>
+              <div className="range-cell">
+                <span className="k">量比</span>
+                <span className="v">{range.volRatio === null ? '—' : range.volRatio.toFixed(2)}</span>
+              </div>
+              <div className="range-cell">
+                <span className="k">20 日波动率</span>
+                <span className="v">{range.volatility.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="card section">
         <div className="card-head">
           <span className="card-title">日 K · 均线 · 成交量 · MACD</span>
           <span className="card-sub">{data.candles.length} 个交易日 · 前复权</span>
         </div>
+        <div className="kline-toolbar">
+          <div className="seg" role="tablist" aria-label="K 线周期">
+            {PERIODS.map((item) => (
+              <button
+                key={item.id}
+                role="tab"
+                aria-selected={period === item.id}
+                className={`seg-item ${period === item.id ? 'active' : ''}`}
+                onClick={() => setPeriod(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="seg" role="tablist" aria-label="副图指标">
+            {INDICATORS.map((item) => (
+              <button
+                key={item.id}
+                role="tab"
+                aria-selected={indicator === item.id}
+                className={`seg-item ${indicator === item.id ? 'active' : ''}`}
+                onClick={() => setIndicator(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {data.candles.length === 0 ? (
           <EmptyBlock title="没有 K 线数据" description="该标的当日没有行情数据。" />
         ) : (
-          <StockChart candles={data.candles} />
+          <StockChart candles={data.candles} period={period} indicator={indicator} />
         )}
       </div>
+
+      {(() => {
+        const related = (news.data?.items ?? []).filter((item) => item.codes.includes(data.code)).slice(0, 3);
+        if (related.length === 0) return null;
+        return (
+          <div className="card section">
+            <div className="card-head">
+              <span className="card-title">相关资讯</span>
+              <span className="card-sub">{related.length} 条</span>
+            </div>
+            {related.map((item) => (
+              <div className="news-row2 stock-news" key={item.id}>
+                <div className="ntime">{item.published}</div>
+                <div className="nmain">
+                  <div className="ntitle">{item.title}</div>
+                  <div className="nmeta">
+                    <span>{item.source}</span>
+                    <span className="ndot" aria-hidden="true">·</span>
+                    <span>
+                      {item.reason_source === 'exchange' ? '交易所公告' : item.reason_source === 'news' ? '媒体资讯' : '规则推断'}
+                    </span>
+                  </div>
+                </div>
+                <div />
+              </div>
+            ))}
+          </div>
+        );
+      })()}
     </>
   );
 }
