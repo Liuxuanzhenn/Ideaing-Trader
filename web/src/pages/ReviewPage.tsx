@@ -87,7 +87,6 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
     industryCount.set(key, (industryCount.get(key) ?? 0) + 1);
   }
   const industries = [...industryCount.entries()].sort((a, b) => b[1] - a[1]);
-  const maxIndustry = Math.max(1, ...industries.map(([, n]) => n));
 
   return (
     <>
@@ -215,7 +214,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             </div>
           </div>
 
-          <div className="card section">
+          <div className="card section ladder-card">
             <div className="card-head">
               <span className="card-title">连板天梯</span>
               <span className="card-sub">
@@ -233,7 +232,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             {levelKeys.length === 0 ? (
               <div className="small muted">今日没有涨停股</div>
             ) : (
-              <div className="ladder-layout">
+              <>
                 <div className="ladder-rows">
                   {levelKeys.map((level) => {
                     const rows = levels.get(level)!;
@@ -267,17 +266,16 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                   })}
                 </div>
 
-                <div className="industry-dist">
-                  <div className="industry-head">行业分布</div>
+                <div className="industry-strip">
+                  <span className="istrip-label">行业分布</span>
                   {industries.map(([name, n]) => (
-                    <div className="industry-row" key={name}>
-                      <span className="iname">{name}</span>
-                      <span className="ibar"><i style={{ width: `${(n / maxIndustry) * 100}%` }} /></span>
-                      <span className="inum">{n}</span>
-                    </div>
+                    <span className="ind-chip" key={name}>
+                      {name}
+                      <b>{n}</b>
+                    </span>
                   ))}
                 </div>
-              </div>
+              </>
             )}
           </div>
 
@@ -315,16 +313,19 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                         <td className="num">{sector.limit_up || '—'}</td>
                         <td className="num muted">{yuan(sector.amount)}</td>
                         <td>
-                          <button
-                            className="link-chip"
-                            onClick={() => onOpenStock?.(sector.leader.code)}
-                            tabIndex={0}
-                          >
-                            {sector.leader.name}
-                            <span className={toneOf(sector.leader.chg_pct)} style={{ marginLeft: 6 }}>
-                              {pct(sector.leader.chg_pct)}
-                            </span>
-                          </button>
+                          <div className="leaders">
+                            {sector.leaders.map((leader) => (
+                              <button
+                                className="link-chip"
+                                key={leader.code}
+                                onClick={() => onOpenStock?.(leader.code)}
+                                tabIndex={0}
+                              >
+                                {leader.name}
+                                <span className={toneOf(leader.chg_pct)}>{pct(leader.chg_pct)}</span>
+                              </button>
+                            ))}
+                          </div>
                         </td>
                       </tr>
                     ))}

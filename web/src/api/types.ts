@@ -133,7 +133,8 @@ export interface SectorRow {
   limit_up: number;
   /** 成交额，单位：元 */
   amount: number;
-  leader: { code: string; name: string; chg_pct: number };
+  /** 领涨股，按涨幅取前几只 */
+  leaders: { code: string; name: string; chg_pct: number }[];
 }
 
 export interface Review {

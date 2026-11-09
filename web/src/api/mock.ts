@@ -93,16 +93,30 @@ const LADDER = [
 ];
 
 const SECTORS = [
-  { name: '通信', chg_pct: 4.82, chg_5d_pct: 7.61, up: 38, total: 46, limit_up: 7, amount: 1284e8, leader: { code: '603083', name: '剑桥科技', chg_pct: 10.01 } },
-  { name: '计算机', chg_pct: 3.95, chg_5d_pct: 5.24, up: 96, total: 128, limit_up: 13, amount: 2160e8, leader: { code: '000977', name: '浪潮信息', chg_pct: 6.85 } },
-  { name: '传媒', chg_pct: 3.11, chg_5d_pct: 2.88, up: 42, total: 61, limit_up: 6, amount: 726e8, leader: { code: '601595', name: '上海电影', chg_pct: 10.02 } },
-  { name: '电子', chg_pct: 2.46, chg_5d_pct: 3.1, up: 84, total: 132, limit_up: 4, amount: 1520e8, leader: { code: '300474', name: '景嘉微', chg_pct: 10.0 } },
-  { name: '非银金融', chg_pct: 1.38, chg_5d_pct: 1.02, up: 28, total: 47, limit_up: 1, amount: 860e8, leader: { code: '300059', name: '东方财富', chg_pct: 2.3 } },
-  { name: '银行', chg_pct: 0.42, chg_5d_pct: -0.35, up: 18, total: 42, limit_up: 0, amount: 412e8, leader: { code: '600036', name: '招商银行', chg_pct: 0.62 } },
-  { name: '医药生物', chg_pct: -0.35, chg_5d_pct: -1.24, up: 96, total: 214, limit_up: 1, amount: 980e8, leader: { code: '603259', name: '药明康德', chg_pct: 1.12 } },
-  { name: '食品饮料', chg_pct: -0.68, chg_5d_pct: -2.06, up: 34, total: 78, limit_up: 0, amount: 520e8, leader: { code: '600519', name: '贵州茅台', chg_pct: -0.42 } },
-  { name: '电力设备', chg_pct: -1.42, chg_5d_pct: -3.18, up: 41, total: 128, limit_up: 0, amount: 1080e8, leader: { code: '300750', name: '宁德时代', chg_pct: 3.15 } },
-  { name: '房地产', chg_pct: -2.18, chg_5d_pct: -4.62, up: 12, total: 58, limit_up: 0, amount: 386e8, leader: { code: '000002', name: '万科A', chg_pct: -1.02 } },
+  { name: '通信', chg_pct: 4.82, chg_5d_pct: 7.61, up: 38, total: 46, limit_up: 7, amount: 1284e8, leaders: [
+      { code: '603083', name: '剑桥科技', chg_pct: 10.01 },
+      { code: '300502', name: '新易盛', chg_pct: 9.99 },
+      { code: '002123', name: '梦网科技', chg_pct: 9.98 },
+    ] },
+  { name: '计算机', chg_pct: 3.95, chg_5d_pct: 5.24, up: 96, total: 128, limit_up: 13, amount: 2160e8, leaders: [
+      { code: '000977', name: '浪潮信息', chg_pct: 6.85 },
+      { code: '002261', name: '拓维信息', chg_pct: 9.96 },
+      { code: '600410', name: '华胜天成', chg_pct: 10.05 },
+    ] },
+  { name: '传媒', chg_pct: 3.11, chg_5d_pct: 2.88, up: 42, total: 61, limit_up: 6, amount: 726e8, leaders: [
+      { code: '601595', name: '上海电影', chg_pct: 10.02 },
+      { code: '603533', name: '掌阅科技', chg_pct: 10.0 },
+    ] },
+  { name: '电子', chg_pct: 2.46, chg_5d_pct: 3.1, up: 84, total: 132, limit_up: 4, amount: 1520e8, leaders: [
+      { code: '300474', name: '景嘉微', chg_pct: 10.0 },
+      { code: '688981', name: '中芯国际', chg_pct: 4.12 },
+    ] },
+  { name: '非银金融', chg_pct: 1.38, chg_5d_pct: 1.02, up: 28, total: 47, limit_up: 1, amount: 860e8, leaders: [{ code: '300059', name: '东方财富', chg_pct: 2.3 }] },
+  { name: '银行', chg_pct: 0.42, chg_5d_pct: -0.35, up: 18, total: 42, limit_up: 0, amount: 412e8, leaders: [{ code: '600036', name: '招商银行', chg_pct: 0.62 }] },
+  { name: '医药生物', chg_pct: -0.35, chg_5d_pct: -1.24, up: 96, total: 214, limit_up: 1, amount: 980e8, leaders: [{ code: '603259', name: '药明康德', chg_pct: 1.12 }] },
+  { name: '食品饮料', chg_pct: -0.68, chg_5d_pct: -2.06, up: 34, total: 78, limit_up: 0, amount: 520e8, leaders: [{ code: '600519', name: '贵州茅台', chg_pct: -0.42 }] },
+  { name: '电力设备', chg_pct: -1.42, chg_5d_pct: -3.18, up: 41, total: 128, limit_up: 0, amount: 1080e8, leaders: [{ code: '300750', name: '宁德时代', chg_pct: 3.15 }] },
+  { name: '房地产', chg_pct: -2.18, chg_5d_pct: -4.62, up: 12, total: 58, limit_up: 0, amount: 386e8, leaders: [{ code: '000002', name: '万科A', chg_pct: -1.02 }] },
 ];
 
 const NEWS: NewsItem[] = [
