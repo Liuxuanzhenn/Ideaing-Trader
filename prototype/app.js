@@ -495,15 +495,6 @@ function skeletonReview() {
 }
 
 /* ---------- 复盘 ---------- */
-function ladderGroups() {
-  const map = new Map();
-  UNIVERSE.filter((s) => s.ladder).forEach((s) => {
-    if (!map.has(s.ladder)) map.set(s.ladder, []);
-    map.get(s.ladder).push(s);
-  });
-  return Array.from(map.entries()).sort((a, b) => b[0] - a[0]);
-}
-
 function newsStatusHtml(n) {
   const cls = n.status === 'full' ? 'tag-ok' : n.status === 'title' ? 'tag-warn' : 'tag-bad';
   return `<span class="tag ${cls}">${esc(NEWS_STATUS[n.status])}</span>`;
@@ -541,23 +532,66 @@ function newsCardHtml(n, compact = false) {
     </div>
   </article>`;
 }
-function marketNewsBlock() {
+function newsStrip() {
   const items = NEWS.slice(0, 3);
-  return `<div class="card section">
+  return `<div class="card section news-strip">
     <div class="card-head">
-      <span class="card-title">市场资讯 / 事件</span>
-      <span class="tag tag-warn">静态示例 · 功能未接入</span>
-      <button class="mini-link" style="margin-left:auto" data-action="open-news">查看全部 ${NEWS.length} 条</button>
+      <span class="card-title">资讯 / 事件</span>
+      <span class="tag">静态示例</span>
+      <button class="mini-link" data-action="open-news">全部 ${NEWS.length} 条</button>
     </div>
-    <div class="news-grid">${items.map((n) => `<article class="news-card" data-action="open-news" data-id="${n.id}">
-      <div class="news-top"><span class="news-source">${esc(n.source)}</span><span class="news-time">${esc(n.published)} · 抓取 ${esc(n.fetched)}</span></div>
-      <button class="news-title" data-action="open-news" data-id="${n.id}">${esc(n.title)}</button>
-      <div class="news-meta">${newsMetaHtml(n)}${newsStatusHtml(n)}</div>
-      <div class="news-foot"><span class="news-rel">${newsRelatedHtml(n)}</span><button class="mini-link" data-action="news-origin" data-id="${n.id}">原文 ↗</button></div>
-    </article>`).join('')}</div>
-    <div class="card-note">来源、发布时间与抓取时间均为构造数据；事实与规则推断分开标注，不构成荐股。</div>
+    <div class="ns-rows">${items.map((n) => `<button class="ns-row" data-action="open-news" data-id="${n.id}">
+      <span class="ns-time">${esc(n.published.slice(-5))}</span>
+      <span class="ns-title">${esc(n.title)}</span>
+      ${newsStatusHtml(n)}
+    </button>`).join('')}</div>
   </div>`;
 }
+
+function marketStateCard(warn) {
+  const upW = (BREADTH.up / BREADTH.total * 100).toFixed(1);
+  const flatW = (BREADTH.flat / BREADTH.total * 100).toFixed(1);
+  const downW = (BREADTH.down / BREADTH.total * 100).toFixed(1);
+  return `<div class="card section market-state">
+    <div class="ms-row">
+      <div class="ms-item"><span class="k">涨停</span><span class="v up">${LIMIT_STATS.up}</span></div>
+      <div class="ms-item"><span class="k">跌停</span><span class="v down">${LIMIT_STATS.down}</span></div>
+      <div class="ms-item"><span class="k">炸板</span><span class="v">${warn ? '—' : LIMIT_STATS.broken}</span></div>
+      <div class="ms-item"><span class="k">封板率<button class="metric-link" data-action="metric-info" data-metric="seal_rate">口径</button></span><span class="v">${warn ? '—' : LIMIT_STATS.sealRate + '%'}</span></div>
+    </div>
+    <div class="breadth-bar" aria-label="上涨下跌家数比例">
+      <i style="width:${upW}%;background:var(--up)"></i>
+      <i style="width:${flatW}%;background:#6e6e6e"></i>
+      <i style="width:${downW}%;background:var(--down)"></i>
+    </div>
+    <div class="ms-legend"><span class="up">涨 ${fmt(BREADTH.up, 0)}</span><span>平 ${fmt(BREADTH.flat, 0)}</span><span class="down">跌 ${fmt(BREADTH.down, 0)}</span><span class="ms-total">全 A ${fmt(BREADTH.total, 0)}</span></div>
+  </div>`;
+}
+
+function actionStrip(rows) {
+  const top = rows.slice(0, 4);
+  return `<div class="card section action-strip">
+    <div class="card-head">
+      <span class="card-title">今日连板</span>
+      <span class="card-sub">单击预览 · 最高 ${rows[0] ? rows[0].ladder : 0} 板</span>
+      <button class="mini-link" data-action="jump-limit">全部 ${rows.length} 只 →</button>
+    </div>
+    <div class="ladder">${top.map((s) => `<button class="ladder-chip" data-action="select-stock" data-code="${s.code}"><span class="lvl">${s.ladder} 板</span><span class="names">${esc(s.name)}</span></button>`).join('')}</div>
+  </div>`;
+}
+
+function themeCard(warn) {
+  return `<div class="card section">
+    <div class="card-head"><span class="card-title">涨停题材</span><span class="card-sub">规则推断 · 非交易所事实</span></div>
+    ${warn
+      ? '<div class="themes-empty">原因文本源不可用，本日不展示题材推断，避免与事实混淆。</div>'
+      : `<div class="themes">${THEMES.map((t) => `<div class="theme">
+          <div class="theme-name">${esc(t.name)} · ${t.count} 只</div>
+          <div class="theme-codes">${t.codes.map((c) => { const s = stockByCode(c); return s ? `<button class="stock-link" data-action="select-stock" data-code="${s.code}">${esc(s.name)}</button>` : ''; }).join('')}</div>
+        </div>`).join('')}</div>`}
+  </div>`;
+}
+
 function stockNewsBlock(stock) {
   const items = newsFor(stock.code).slice(0, 3);
   return `<div class="ctx-section">
@@ -656,14 +690,19 @@ function viewReview() {
         <div class="empty-actions"><button class="btn btn-primary" data-action="go-latest">返回最近交易日 2026-11-06</button><button class="btn" data-action="data-status">数据状态</button></div>
       </div>`;
   }
-  const groups = ladderGroups();
-  const limitStocks = UNIVERSE.filter((s) => s.ladder).sort((a, b) => b.ladder - a.ladder);
   const warn = meta.mode === 'warn';
+  const limitStocks = UNIVERSE.filter((s) => s.ladder).sort((a, b) => b.ladder - a.ladder);
+  const updatedAt = state.date === '2026-11-05' ? '15:30' : state.date === '2026-11-04' ? '15:29' : '15:32';
+  const statusChip = state.connection === 'offline'
+    ? '<button class="status-chip status-bad" data-action="data-status"><span class="dot"></span>缓存 · 已过期</button>'
+    : warn
+      ? '<button class="status-chip status-warn" data-action="data-status"><span class="dot"></span>部分缺失</button>'
+      : '<button class="status-chip" data-action="data-status"><span class="dot dot-ok"></span>数据完整</button>';
   return `
   <div class="view-head">
     <div>
-      <h2 class="view-title">盘后复盘 · ${state.date}${state.connection === 'offline' ? '<span class="tag tag-warn">缓存 · 已过期</span>' : ''}</h2>
-      <div class="view-sub">数据日期 ${state.date} · ${state.date === '2026-11-05' ? '11-05 15:30' : state.date === '2026-11-04' ? '11-04 15:29' : '11-06 15:32'} 更新 · ${esc(meta.coverage)}</div>
+      <h2 class="view-title">盘后复盘 · ${state.date}${statusChip}</h2>
+      <div class="view-sub">${updatedAt} 更新 · ${esc(meta.coverage)}</div>
     </div>
     <div class="view-actions">
       <label class="field-inline">交易日
@@ -679,60 +718,20 @@ function viewReview() {
     </div>
   </div>
 
-  ${warn ? `<div class="banner banner-warn"><span class="banner-ico">△</span><div class="banner-body"><strong>数据部分缺失</strong>：涨停原因源调用失败，炸板率与题材归类暂不可用；其他指标完整。Agent 查询将返回完整性提示。<div class="small">数据日期 2026-11-05 · 失败源：limit_reason（重试 2 次后放弃）</div></div><button class="btn btn-small" data-action="data-status">数据状态</button></div>` : ''}
   ${state.connection === 'offline' ? `<div class="banner banner-bad"><span class="banner-ico">!</span><div class="banner-body"><strong>远端断连</strong>：展示的是 2026-11-06 15:32 的本地缓存，不能视为实时数据。重连后可查询远端任务和最新结果。</div><button class="btn btn-small" data-action="reconnect">重连</button></div>` : ''}
 
   <div class="index-strip">
     ${INDICES.map((i) => `<div class="index-item"><div class="index-name"><span>${esc(i.name)}</span><span class="num">${i.code}</span></div><div class="index-value">${fmt(i.value)}</div><div class="index-chg ${cls(i.chg)}">${pct(i.chg)}</div></div>`).join('')}
   </div>
 
-  ${marketNewsBlock()}
-
-  <div class="grid grid-2 section">
-    <div class="card">
-      <div class="card-head"><span class="card-title">市场宽度</span><span class="card-sub">全A 5,412 只</span></div>
-      <div class="breadth">
-        <div class="breadth-bar" aria-label="上涨下跌家数比例">
-          <i style="width:${(BREADTH.up / BREADTH.total * 100).toFixed(1)}%;background:var(--up)"></i>
-          <i style="width:${(BREADTH.flat / BREADTH.total * 100).toFixed(1)}%;background:#4a4a4a"></i>
-          <i style="width:${(BREADTH.down / BREADTH.total * 100).toFixed(1)}%;background:var(--down)"></i>
-        </div>
-        <div class="breadth-legend"><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--up);margin-right:4px"></i>上涨 <b>${fmt(BREADTH.up, 0)}</b></span><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4a4a4a;margin-right:4px"></i>平盘 <b>${fmt(BREADTH.flat, 0)}</b></span><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--down);margin-right:4px"></i>下跌 <b>${fmt(BREADTH.down, 0)}</b></span></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">涨跌停与封板</span><span class="card-sub">样本 ${LIMIT_STATS.sample} 只</span></div>
-      <div class="limit-stats">
-        <div class="limit-stat"><div class="k">涨停</div><div class="v up">${LIMIT_STATS.up}</div></div>
-        <div class="limit-stat"><div class="k">跌停</div><div class="v down">${LIMIT_STATS.down}</div></div>
-        <div class="limit-stat"><div class="k">炸板</div><div class="v ${warn ? 'muted' : ''}">${warn ? '—' : LIMIT_STATS.broken}</div></div>
-        <div class="limit-stat"><div class="k">封板率 <button class="metric-link" data-action="metric-info" data-metric="seal_rate">口径</button></div><div class="v ${warn ? 'muted' : ''}">${warn ? '—' : LIMIT_STATS.sealRate + '%'}</div></div>
-        ${warn ? '<span class="tag tag-warn">数据缺失</span>' : ''}
-      </div>
-    </div>
-  </div>
-
+  ${marketStateCard(warn)}
+  ${actionStrip(limitStocks)}
+  ${newsStrip()}
   ${reviewVizGrid(warn)}
-
-  <div class="card section">
-    <div class="card-head"><span class="card-title">连板梯队</span><span class="card-sub">最高 ${groups[0]?.[0] || 0} 板 · ${limitStocks.length} 只涨停股</span></div>
-    <div class="ladder">
-      ${groups.map(([lvl, arr]) => `<button class="ladder-chip" data-action="select-stock" data-code="${arr[0].code}"><span class="lvl">${lvl} 板</span><span class="names">${arr.map((s) => esc(s.name)).join(' · ')}</span></button>`).join('')}
-    </div>
-    
-  </div>
-
   ${sectorFlowBlock()}
+  ${themeCard(warn)}
 
-  <div class="grid grid-2 section">
-    <div class="card">
-      <div class="card-head"><span class="card-title">涨停题材</span><span class="card-sub">规则推断 · 非交易所事实</span></div>
-      ${warn ? '<div class="empty-state" style="padding:24px 12px"><div class="empty-ico">△</div><h4>题材归类不可用</h4><p>原因文本源调用失败，本日不展示模型推断结果，避免与事实混淆。</p></div>' : THEMES.map((t) => `<div style="margin-bottom:10px"><div class="small muted" style="margin-bottom:4px">${esc(t.name)} · ${t.count} 只</div><div style="display:flex;flex-wrap:wrap;gap:4px">${t.codes.map((c) => { const s = stockByCode(c); return s ? `<button class="stock-link" data-action="select-stock" data-code="${s.code}">${esc(s.name)}<span class="c">${s.code}</span></button>` : ''; }).join('')}</div></div>`).join('')}
-      
-    </div>
-  </div>
-
-  <div class="card section">
+  <div class="card section" id="limit-table">
     <div class="card-head"><span class="card-title">涨停股票</span><span class="card-sub">单击预览 · 双击打开个股</span></div>
     <div class="table-wrap">
       <table class="data">
@@ -749,7 +748,6 @@ function viewReview() {
         </tbody>
       </table>
     </div>
-    
   </div>`;
 }
 
@@ -857,7 +855,7 @@ function histogramSvg(buckets, opts = {}) {
     ${buckets.map((b, i) => {
       const bh = (b.v / max) * (h - top - bottom);
       const isUp = b.up;
-      const fill = isUp === true ? '#e05a6d' : isUp === false ? '#2fa37a' : '#4a4a4a';
+      const fill = isUp === true ? '#e05a6d' : isUp === false ? '#2fa37a' : '#6e6e6e';
       return `<rect x="${(left + i * bw + 3).toFixed(1)}" y="${(h - bottom - bh).toFixed(1)}" width="${Math.max(2, bw - 6).toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${fill}" opacity=".75"/>
         <text x="${(left + i * bw + bw / 2).toFixed(1)}" y="${h - 8}" text-anchor="middle">${esc(b.label)}</text>
         <text x="${(left + i * bw + bw / 2).toFixed(1)}" y="${(h - bottom - bh - 6).toFixed(1)}" text-anchor="middle" opacity="${b.v ? .9 : 0}">${b.v}</text>`;
@@ -1642,6 +1640,7 @@ function ctxStock(code) {
     <div class="ctx-actions">
       <button class="btn btn-small btn-primary" data-action="open-stock" data-code="${s.code}">打开个股页</button>
       <button class="btn btn-small" data-action="toggle-watch" data-code="${s.code}">${inWatch ? '移出观察池' : '+ 观察池'}</button>
+      <button class="btn btn-small" data-action="basket-add" data-code="${s.code}">${state.basket.includes(s.code) ? '已在选股篮' : '+ 选股篮'}</button>
     </div>
   </div>
   <div class="ctx-section">
@@ -1723,6 +1722,8 @@ function ctxDefault() {
 function renderContext() {
   const body = $('#context-body');
   if (!body) return;
+  const app = $('#app');
+  if (app) app.classList.toggle('ctx-collapsed', !state.selectedStock && !state.selectedTask && state.module === 'review' && state.sub === 'overview');
   const taskMode = state.module === 'tasks' || (state.module === 'backtest' && state.sub === 'result');
   if (state.selectedTask && (taskMode || !state.selectedStock)) {
     const t = state.tasks.find((x) => x.id === state.selectedTask);
@@ -2183,6 +2184,7 @@ function handleAction(action, el) {
     case 'open-result': openTab('result', { taskId: el.dataset.task }); break;
     case 'trade-page': state.tradePage = Number(el.dataset.page); renderView(); break;
     case 'open-tasks': openTab('tasks'); break;
+    case 'jump-limit': document.getElementById('limit-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
     case 'open-logs': openLogs(id || state.selectedTask || state.tasks[0].id); break;
     case 'research-task': researchTask(code); break;
     case 'open-agent': openAgent(); break;
