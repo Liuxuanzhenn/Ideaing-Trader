@@ -125,7 +125,7 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
       <div className="card section">
         <div className="card-head">
           <span className="card-title">累计净值与基准</span>
-          <span className="card-sub">起点 100</span>
+          
         </div>
         <LineChart
           labels={data.labels}

@@ -116,7 +116,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
       <div className="card section">
         <div className="card-head">
           <span className="card-title">关键统计</span>
-          <span className="card-sub">窗口与样本随值展示</span>
+          
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 }}>
           <div>
@@ -124,25 +124,19 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
             <div className={`stat-line ${toneOf(data.chg_pct)}`}>
               {fmt(data.price)} <span className="small">{pct(data.chg_pct)}</span>
             </div>
-            <div className="small muted">成交额 {yuan(data.amount)}</div>
           </div>
           <div>
             <div className="small muted">近 20 日涨幅</div>
             <div className={`stat-line ${toneOf(data.stats.chg_20d_pct)}`}>{pct(data.stats.chg_20d_pct)}</div>
-            <div className="small muted">窗口 20 个交易日</div>
           </div>
           <div>
             <div className="small muted">低开高走率</div>
             <div className="stat-line">{lowOpen === null ? '—' : `${(lowOpen * 100).toFixed(1)}%`}</div>
-            <div className="small muted">
-              {data.stats.low_open.hits}/{data.stats.low_open.samples} 笔 ·{' '}
-              {data.stats.low_open.samples < 10 ? '样本不足' : '样本满足阈值'}
-            </div>
+            <div className="small muted">{data.stats.low_open.hits}/{data.stats.low_open.samples} 笔</div>
           </div>
           <div>
             <div className="small muted">近 250 日涨停</div>
             <div className="stat-line">{data.stats.limit_250} 次</div>
-            <div className="small muted">最高连板 {data.stats.max_ladder} 板</div>
           </div>
         </div>
       </div>
@@ -151,7 +145,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
         <div className="card-head">
           <span className="card-title">日 K 与成交量</span>
           <span className="card-sub">
-            换手 {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`} · 流通市值 {data.mcap === null ? '—' : yuan(data.mcap)}
+            {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`} · {data.mcap === null ? '—' : yuan(data.mcap)}
           </span>
         </div>
         {data.candles.length === 0 ? (

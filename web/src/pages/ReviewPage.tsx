@@ -141,7 +141,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
           <div className="card section">
             <div className="card-head">
               <span className="card-title">今日连板</span>
-              <span className="card-sub">单击预览 · 双击打开个股</span>
+              
             </div>
             <div className="table-wrap">
               <table className="data">
@@ -184,7 +184,6 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
           <div className="card section">
             <div className="card-head">
               <span className="card-title">资讯 / 事件</span>
-              <span className="card-sub">示例 · 尚未按交易日过滤（已知限制）</span>
             </div>
             {data.news.length === 0 ? (
               <div className="small muted">暂无资讯</div>

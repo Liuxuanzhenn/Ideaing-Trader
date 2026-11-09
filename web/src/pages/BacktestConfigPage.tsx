@@ -80,7 +80,7 @@ export function BacktestConfigPage({ client, onSubmitted }: Props) {
       <div className="card section">
         <div className="card-head">
           <span className="card-title">回测配置</span>
-          <span className="card-sub">参数变更会写入任务记录</span>
+          
         </div>
         <div className="form-grid">
           <div className="field">
