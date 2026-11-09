@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { ApiClient } from '../api/client';
 import type { Portfolio } from '../api/types';
 import { useAsync } from '../lib/useAsync';
-import { Candles } from '../components/charts';
+import { StockChart } from '../components/StockChart';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
 import { fmt, pct, toneOf, yuan } from '../lib/format';
 
@@ -96,8 +96,16 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
             <StatusChip level={data.meta.status.level} />
           </h2>
           <div className="view-sub">
-            {data.board} · {STATUS_TEXT[data.trade_status]} ·{' '}
-            {data.industry ?? '行业未分类（数据源未提供）'} · {data.concepts.join(' · ')}
+            {data.board} · {STATUS_TEXT[data.trade_status]} · {data.industry ?? '行业未分类'} ·{' '}
+            {data.concepts.slice(0, 3).join(' · ')}
+          </div>
+          <div className="quote-line">
+            <span className={`quote-price ${toneOf(data.chg_pct)}`}>{fmt(data.price)}</span>
+            <span className={`quote-chg ${toneOf(data.chg_pct)}`}>{pct(data.chg_pct)}</span>
+            <span className="quote-meta">
+              成交 {yuan(data.amount)} · 换手 {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`} · 市值{' '}
+              {data.mcap === null ? '—' : yuan(data.mcap)}
+            </span>
           </div>
         </div>
         <div className="view-actions">
@@ -143,15 +151,13 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
 
       <div className="card section">
         <div className="card-head">
-          <span className="card-title">日 K 与成交量</span>
-          <span className="card-sub">
-            {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`} · {data.mcap === null ? '—' : yuan(data.mcap)}
-          </span>
+          <span className="card-title">日 K · 均线 · 成交量 · MACD</span>
+          <span className="card-sub">{data.candles.length} 个交易日 · 前复权</span>
         </div>
         {data.candles.length === 0 ? (
           <EmptyBlock title="没有 K 线数据" description="该标的当日没有行情数据。" />
         ) : (
-          <Candles candles={data.candles} />
+          <StockChart candles={data.candles} />
         )}
       </div>
     </>

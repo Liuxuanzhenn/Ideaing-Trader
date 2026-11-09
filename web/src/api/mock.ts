@@ -267,7 +267,7 @@ function candlesFor(seed: number, price: number): Candle[] {
   const random = rng(seed);
   const out: Candle[] = [];
   let close = price * 0.88;
-  for (let i = 39; i >= 0; i -= 1) {
+  for (let i = 119; i >= 0; i -= 1) {
     const drift = (price / close - 1) / (i + 1);
     const open = close * (1 + (random() - 0.5) * 0.012);
     close *= 1 + drift + (random() - 0.5) * 0.03;

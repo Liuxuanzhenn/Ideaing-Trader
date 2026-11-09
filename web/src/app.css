@@ -563,3 +563,39 @@ table.data.sectors .link-chip { font-size: 13px; }
   .split { grid-template-columns: 1fr; }
   .flow-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- 个股 K 线（主图 + 量 + MACD） ---------- */
+.kline { position: relative; }
+.kline-svg { width: 100%; height: auto; display: block; font-family: var(--mono); }
+.kline-svg text { font-size: 12px; }
+
+.kline-tip {
+  position: absolute; top: 8px; left: 8px;
+  min-width: 178px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(14, 14, 17, .94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .4);
+  pointer-events: none;
+  font-size: 12.5px;
+}
+.kline-tip .kt-date { display: flex; align-items: baseline; gap: 8px; font-family: var(--mono); color: var(--text); margin-bottom: 6px; }
+.kline-tip .kt-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 3px 8px; color: var(--muted-2); }
+.kline-tip .kt-grid b { color: var(--text); font-weight: 520; font-variant-numeric: tabular-nums; }
+
+.kline-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--muted-2); }
+.kline-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.kline-legend i { width: 14px; height: 0; border-top: 1.5px solid currentColor; display: inline-block; }
+.kline-legend .lg-ma5 { color: var(--text); }
+.kline-legend .lg-ma10 { color: var(--muted); }
+.kline-legend .lg-ma20 { color: var(--muted-2); border-top-style: dashed; }
+.kline-legend .lg-ma60 { color: var(--muted-2); border-top-style: dotted; }
+.kline-legend .kline-hint { margin-left: auto; color: var(--muted-2); }
+
+/* 个股头部行情行 */
+.quote-line { display: flex; align-items: baseline; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.quote-price { font-size: 30px; font-weight: 560; font-variant-numeric: tabular-nums; letter-spacing: -.6px; line-height: 1.1; }
+.quote-chg { font-size: 15px; font-variant-numeric: tabular-nums; }
+.quote-meta { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
