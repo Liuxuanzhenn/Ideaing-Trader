@@ -3,6 +3,7 @@ import type { ApiClient } from '../api/client';
 import type { Review } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, ReviewSkeleton, StaleBanner, StatusChip } from '../components/States';
+import { Spark } from '../components/charts';
 import { fmt, fmtDate, fmtDateTime, pct, toneOf } from '../lib/format';
 
 interface Props {
@@ -18,17 +19,14 @@ interface Props {
 
 const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
 
-/** 万亿/亿展示，只在展示层换算 */
 function amountText(value: number): string {
   if (value >= 1e12) return `${(value / 1e12).toFixed(2)} 万亿`;
   if (value >= 1e8) return `${(value / 1e8).toFixed(0)} 亿`;
   return `${value.toFixed(0)} 元`;
 }
 
-function deltaText(delta: number, unit: 'int' | 'pt' = 'int'): string {
-  const sign = delta > 0 ? '+' : '';
-  return unit === 'pt' ? `${sign}${delta.toFixed(1)}pt` : `${sign}${delta.toFixed(0)}`;
-}
+const delta = (value: number, unit: 'int' | 'pt' = 'int') =>
+  `${value > 0 ? '+' : ''}${unit === 'pt' ? value.toFixed(1) : value.toFixed(0)}${unit === 'pt' ? 'pt' : ''}`;
 
 export function ReviewPage({ client, date, dateFallback = false, selectedCode = null, onSelectStock, onOpenStock }: Props) {
   const load = useCallback(() => (date ? client.getReview(date) : pending<Review>()), [client, date]);
@@ -63,13 +61,12 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
   }
 
   const data = review.data!;
-  const { meta, breadth, limit, market, prev } = data;
+  const { meta, breadth, limit, market, prev, series } = data;
   const breadthTotal = breadth.up + breadth.flat + breadth.down;
   const share = (value: number) => (breadthTotal ? (value / breadthTotal) * 100 : 0);
-  const count = (value: number | null) => (value === null ? '—' : fmt(value, 0));
   const sealPct = limit.seal_rate === null ? null : limit.seal_rate * 100;
   const prevSealPct = prev?.seal_rate == null ? null : prev.seal_rate * 100;
-  const redRatio = breadthTotal ? breadth.up / breadthTotal : 0;
+  const count = (value: number | null) => (value === null ? '—' : fmt(value, 0));
 
   const levels = new Map<number, typeof data.ladder>();
   for (const row of data.ladder) {
@@ -77,6 +74,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
     levels.get(row.ladder)!.push(row);
   }
   const levelKeys = [...levels.keys()].sort((a, b) => b - a);
+  const maxLevelCount = Math.max(1, ...levelKeys.map((k) => levels.get(k)!.length));
 
   return (
     <>
@@ -95,9 +93,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
       {dateFallback ? (
         <div className="banner banner-warn" role="status">
           <span aria-hidden="true">△</span>
-          <div>
-            <strong>交易日未知</strong>：已退回自然日 {date} 请求，结果可能为空或过期。
-          </div>
+          <div><strong>交易日未知</strong>：已退回自然日 {date} 请求，结果可能为空或过期。</div>
         </div>
       ) : null}
       {meta.status.level === 'stale' ? <StaleBanner meta={meta} /> : null}
@@ -113,78 +109,98 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
         </div>
       ) : (
         <>
-          <div className="index-strip">
-            {data.indices.map((index) => (
-              <div className="index-item" key={index.code}>
-                <div className="index-name">
-                  <span>{index.name}</span>
-                </div>
-                <div className="index-value">{fmt(index.close)}</div>
-                <div className={`index-chg ${toneOf(index.chg_pct)}`}>{pct(index.chg_pct)}</div>
+          <div className="tile-grid section">
+            {data.indices.map((index, i) => (
+              <div className="tile" key={index.code}>
+                <div className="k">{index.name}</div>
+                <div className={`v ${toneOf(index.chg_pct)}`}>{fmt(index.close)}</div>
+                <div className={`s ${toneOf(index.chg_pct)}`}>{pct(index.chg_pct)}</div>
+                <Spark values={series.indices[i]?.values ?? []} tone="var(--muted)" />
               </div>
             ))}
-          </div>
 
-          <div className="card section market-board">
-            <div className="mb-primary">
-              <div className="mb-metric">
-                <span className="k">涨停</span>
-                <span className="v up">{count(limit.sealed_up)}</span>
-                {prev ? <span className="d">{deltaText((limit.sealed_up ?? 0) - prev.sealed_up)}</span> : null}
+            <div className="tile">
+              <div className="k">市场宽度</div>
+              <div className="v">
+                {fmt(breadth.up, 0)}
+                <small>/ {fmt(breadth.down, 0)}</small>
               </div>
-              <div className="mb-metric">
-                <span className="k">跌停</span>
-                <span className="v down">{count(limit.sealed_down)}</span>
-                {prev && limit.sealed_down !== null ? <span className="d">{deltaText(limit.sealed_down - prev.sealed_down!)}</span> : null}
-              </div>
-              <div className="mb-metric">
-                <span className="k">炸板</span>
-                <span className="v">{count(limit.broken_up)}</span>
-                {prev && limit.broken_up !== null ? <span className="d">{deltaText(limit.broken_up - (prev.broken_up ?? 0))}</span> : null}
-              </div>
-              <div className="mb-metric">
-                <span className="k">封板率</span>
-                <span className="v">{sealPct === null ? '—' : `${sealPct.toFixed(1)}%`}</span>
-                {sealPct !== null && prevSealPct !== null ? <span className="d">{deltaText(sealPct - prevSealPct, 'pt')}</span> : null}
-              </div>
-              <div className="mb-metric">
-                <span className="k">两市成交</span>
-                <span className="v">{amountText(market.amount)}</span>
-                {prev ? (
-                  <span className="d">
-                    {(market.amount - prev.amount) >= 0 ? '+' : ''}
-                    {((market.amount - prev.amount) / 1e12).toFixed(2)} 万亿
-                  </span>
-                ) : null}
+              <div className="s">红盘率 {breadthTotal ? ((breadth.up / breadthTotal) * 100).toFixed(0) : 0}%</div>
+              <div className="breadth-mini" aria-label="上涨 / 平盘 / 下跌家数比例">
+                <i style={{ width: `${share(breadth.up)}%`, background: 'var(--up)' }} />
+                <i style={{ width: `${share(breadth.flat)}%`, background: '#6e6e6e' }} />
+                <i style={{ width: `${share(breadth.down)}%`, background: 'var(--down)' }} />
               </div>
             </div>
 
-            <div className="breadth-bar" aria-label="上涨 / 平盘 / 下跌家数比例">
-              <i style={{ width: `${share(breadth.up)}%`, background: 'var(--up)' }} />
-              <i style={{ width: `${share(breadth.flat)}%`, background: '#6e6e6e' }} />
-              <i style={{ width: `${share(breadth.down)}%`, background: 'var(--down)' }} />
-            </div>
-            <div className="ms-legend">
-              <span className="up">涨 {fmt(breadth.up, 0)}</span>
-              <span>平 {fmt(breadth.flat, 0)}</span>
-              <span className="down">跌 {fmt(breadth.down, 0)}</span>
-              <span className="ms-total">红盘率 {(redRatio * 100).toFixed(0)}%</span>
+            <div className="tile">
+              <div className="k">涨停</div>
+              <div className="v up">{count(limit.sealed_up)}</div>
+              <div className="s">{prev ? delta((limit.sealed_up ?? 0) - prev.sealed_up) : '—'}</div>
+              <Spark values={series.sealed_up} kind="bar" tone="var(--up)" />
             </div>
 
-            <div className="mb-secondary">
-              <span><b>{market.new_high_63}</b> 新高</span>
-              <span><b>{market.new_low_63}</b> 新低</span>
-              <span>昨涨停今中位 <b className={toneOf(market.prev_limit.median_pct)}>{pct(market.prev_limit.median_pct, 1)}</b></span>
-              <span>翻红率 <b>{(market.prev_limit.up_ratio * 100).toFixed(0)}%</b></span>
-              <span className="mb-promo">
-                晋级率{' '}
-                {data.promotion.map((step) => (
-                  <em key={step.level}>
-                    {step.level}→{step.level + 1}
-                    <b>{step.rate === null ? '—' : `${(step.rate * 100).toFixed(0)}%`}</b>
-                  </em>
-                ))}
-              </span>
+            <div className="tile">
+              <div className="k">跌停</div>
+              <div className="v down">{count(limit.sealed_down)}</div>
+              <div className="s">{prev && limit.sealed_down !== null ? delta(limit.sealed_down - (prev.sealed_down ?? 0)) : '—'}</div>
+              <Spark values={series.sealed_down} kind="bar" tone="var(--down)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">炸板</div>
+              <div className="v">{count(limit.broken_up)}</div>
+              <div className="s">{prev && limit.broken_up !== null ? delta(limit.broken_up - (prev.broken_up ?? 0)) : '—'}</div>
+              <Spark values={series.broken_up} kind="bar" tone="var(--muted-2)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">封板率</div>
+              <div className="v">{sealPct === null ? '—' : `${sealPct.toFixed(1)}%`}</div>
+              <div className="s">{sealPct !== null && prevSealPct !== null ? delta(sealPct - prevSealPct, 'pt') : '—'}</div>
+              <Spark values={series.seal_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">最高板</div>
+              <div className="v">{levelKeys[0] ?? 0}<small>板</small></div>
+              <div className="s">昨日 {series.max_ladder[series.max_ladder.length - 2] ?? '—'} 板</div>
+              <Spark values={series.max_ladder} kind="bar" tone="var(--text)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">连板家数</div>
+              <div className="v">{data.ladder.filter((r) => r.ladder >= 2).length}<small>只</small></div>
+              <div className="s">含 2 板及以上</div>
+              <Spark values={series.ladder_count} kind="bar" tone="var(--muted-2)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">晋级率</div>
+              <div className="v">
+                {data.promotion[0]?.rate == null ? '—' : `${(data.promotion[0].rate * 100).toFixed(0)}%`}
+              </div>
+              <div className="s">首板 → 二板</div>
+              <Spark values={series.promotion_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">两市成交</div>
+              <div className="v">{amountText(market.amount)}</div>
+              <div className="s">
+                {prev ? `${market.amount >= prev.amount ? '+' : ''}${((market.amount - prev.amount) / 1e12).toFixed(2)} 万亿` : '—'}
+              </div>
+              <Spark values={series.amount.map((v) => v / 1e12)} tone="var(--muted)" />
+            </div>
+
+            <div className="tile">
+              <div className="k">新高 / 新低</div>
+              <div className="v">
+                {market.new_high_63}
+                <small>/ {market.new_low_63}</small>
+              </div>
+              <div className="s">63 日</div>
+              <Spark values={series.new_high_63} tone="var(--muted)" />
             </div>
           </div>
 
@@ -192,7 +208,15 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             <div className="card-head">
               <span className="card-title">连板天梯</span>
               <span className="card-sub">
-                最高 {levelKeys[0] ?? 0} 板 · {data.ladder.length} 只
+                最高 {levelKeys[0] ?? 0} 板 · {data.ladder.length} 只 · 昨涨停今中位{' '}
+                <b className={toneOf(market.prev_limit.median_pct)}>{pct(market.prev_limit.median_pct, 1)}</b> · 翻红{' '}
+                {(market.prev_limit.up_ratio * 100).toFixed(0)}%
+                {data.promotion.length > 0 ? ' · 晋级率 ' : ''}
+                {data.promotion.map((step) => (
+                  <em key={step.level} style={{ fontStyle: 'normal', marginLeft: 8 }}>
+                    {step.level}→{step.level + 1} {step.rate === null ? '—' : `${(step.rate * 100).toFixed(0)}%`}
+                  </em>
+                ))}
               </span>
             </div>
             {levelKeys.length === 0 ? (
@@ -205,7 +229,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                     <div className="ladder-row" key={level}>
                       <span className={`lvl ${level >= 4 ? 'lvl-hot' : ''}`}>{level} 板</span>
                       <span className="bar">
-                        <i style={{ width: `${(rows.length / Math.max(...levelKeys.map((k) => levels.get(k)!.length))) * 100}%` }} />
+                        <i style={{ width: `${(rows.length / maxLevelCount) * 100}%` }} />
                       </span>
                       <span className="names">
                         {rows.map((row) => (

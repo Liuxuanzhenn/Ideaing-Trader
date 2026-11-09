@@ -164,3 +164,62 @@ export function AreaChart({ values }: { values: number[] }) {
     </svg>
   );
 }
+
+/** 迷你趋势：方块卡里的小图，只看形状。 */
+export function Spark({
+  values,
+  kind = 'line',
+  tone = 'var(--muted)',
+}: {
+  values: (number | null)[];
+  kind?: 'line' | 'bar';
+  tone?: string;
+}) {
+  const points = values.filter((v): v is number => v !== null);
+  if (points.length < 2) return <div className="spark" />;
+  const W = 120;
+  const H = 40;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const n = values.length;
+
+  if (kind === 'bar') {
+    const slot = W / n;
+    const bw = Math.max(1.5, slot * 0.62);
+    return (
+      <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+        {values.map((value, index) =>
+          value === null ? null : (
+            <rect
+              key={index}
+              x={index * slot + (slot - bw) / 2}
+              y={H - ((value - min) / span) * (H - 4) - 2}
+              width={bw}
+              height={Math.max(1, ((value - min) / span) * (H - 4))}
+              rx={1}
+              fill={tone}
+              opacity={index === n - 1 ? 0.95 : 0.45}
+            />
+          ),
+        )}
+      </svg>
+    );
+  }
+
+  const x = (index: number) => (index / (n - 1)) * W;
+  const y = (value: number) => H - 2 - ((value - min) / span) * (H - 6);
+  const path = values
+    .map((value, index) => (value === null ? null : `${index && values[index - 1] !== null ? 'L' : 'M'}${x(index).toFixed(1)},${y(value).toFixed(1)}`))
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <path d={path} fill="none" stroke={tone} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {values[n - 1] !== null ? (
+        <circle cx={x(n - 1)} cy={y(values[n - 1] as number)} r={1.8} fill={tone} />
+      ) : null}
+    </svg>
+  );
+}

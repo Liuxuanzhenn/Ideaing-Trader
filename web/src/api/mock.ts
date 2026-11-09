@@ -19,6 +19,7 @@ import type {
   ScreenRow,
   ServiceStatus,
   Stock,
+  ReviewSeries,
   TaskItem,
   TaskList,
   TaskLogs,
@@ -100,6 +101,59 @@ const NEWS: NewsItem[] = [
   { id: 'N-6', title: '某产业链调研纪要流出', source: '示例研究纪要', published: '昨 09:10', status: 'failed', reason_source: 'inferred', codes: ['002230'] },
 ];
 
+function buildSeries(empty: boolean): ReviewSeries {
+  const days = 20;
+  const dates: string[] = [];
+  const d = new Date();
+  while (dates.length < days) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      dates.unshift(`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  if (empty) {
+    return {
+      dates, indices: [], sealed_up: [], sealed_down: [], broken_up: [], seal_rate: [],
+      max_ladder: [], ladder_count: [], amount: [], red_ratio: [], new_high_63: [],
+      new_low_63: [], promotion_rate: [],
+    };
+  }
+  const random = rng(20261106);
+  const walk = (base: number, spread: number, min: number, max: number) => {
+    const out: number[] = [];
+    let v = base;
+    for (let i = 0; i < days; i += 1) {
+      v = Math.min(max, Math.max(min, v + (random() - 0.5) * spread));
+      out.push(v);
+    }
+    out[out.length - 1] = base;
+    return out;
+  };
+  const idx = (code: string, close: number) =>
+    ({ code, values: walk(close, close * 0.012, close * 0.9, close * 1.08).map((v) => +v.toFixed(2)) });
+
+  return {
+    dates,
+    indices: [
+      idx('000001', 3321.45),
+      idx('399001', 10874.32),
+      idx('399006', 2183.77),
+      idx('000300', 3946.08),
+    ],
+    sealed_up: walk(68, 14, 18, 120).map((v) => Math.round(v)).slice(0, days - 1).concat(68),
+    sealed_down: walk(7, 6, 0, 40).map((v) => Math.round(v)).slice(0, days - 1).concat(7),
+    broken_up: walk(21, 9, 4, 60).map((v) => Math.round(v)).slice(0, days - 1).concat(21),
+    seal_rate: walk(0.764, 0.09, 0.35, 0.92).map((v) => +v.toFixed(3)).slice(0, days - 1).concat(0.764),
+    max_ladder: walk(6, 1.6, 2, 9).map((v) => Math.round(v)).slice(0, days - 1).concat(6),
+    ladder_count: walk(6, 3, 0, 18).map((v) => Math.round(v)).slice(0, days - 1).concat(6),
+    amount: walk(1.48e12, 1.6e11, 9e11, 2e12).map((v) => Math.round(v)).slice(0, days - 1).concat(1.48e12),
+    red_ratio: walk(0.58, 0.12, 0.12, 0.9).map((v) => +v.toFixed(3)).slice(0, days - 1).concat(0.58),
+    new_high_63: walk(108, 30, 10, 220).map((v) => Math.round(v)).slice(0, days - 1).concat(108),
+    new_low_63: walk(119, 34, 10, 260).map((v) => Math.round(v)).slice(0, days - 1).concat(119),
+    promotion_rate: walk(0.24, 0.12, 0.02, 0.6).map((v) => +v.toFixed(3)).slice(0, days - 1).concat(0.17),
+  };
+}
+
 function reviewPayload(state: DemoState): Review {
   const empty = state === 'empty';
   const partial = state === 'partial';
@@ -145,6 +199,7 @@ function reviewPayload(state: DemoState): Review {
           seal_rate: 0.605,
           amount: 1.42e12,
         },
+    series: buildSeries(empty),
     ladder: empty ? [] : LADDER,
     news: empty ? [] : NEWS.slice(0, 3),
   };

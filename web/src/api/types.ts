@@ -104,6 +104,23 @@ export interface PrevSnapshot {
   amount: number;
 }
 
+/** 近 N 个交易日序列，供首屏小图使用；缺样本的日期用 null */
+export interface ReviewSeries {
+  dates: string[];
+  indices: { code: string; values: number[] }[];
+  sealed_up: number[];
+  sealed_down: number[];
+  broken_up: (number | null)[];
+  seal_rate: (number | null)[];
+  max_ladder: number[];
+  ladder_count: number[];
+  amount: number[];
+  red_ratio: number[];
+  new_high_63: number[];
+  new_low_63: number[];
+  promotion_rate: (number | null)[];
+}
+
 export interface Review {
   meta: DataMeta;
   is_trading_day: boolean;
@@ -113,6 +130,7 @@ export interface Review {
   market: MarketExtra;
   promotion: PromotionStep[];
   prev: PrevSnapshot | null;
+  series: ReviewSeries;
   ladder: LadderRow[];
   news: NewsItem[];
 }
