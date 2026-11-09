@@ -1,9 +1,13 @@
 import unittest
+from datetime import date
 from decimal import Decimal
 
 from quant_workbench.data.adjust import (
+    FactorChange,
     apply_factors,
+    collapse_to_changes,
     derive_adjustment_factors,
+    factor_on,
     normalize_to_latest,
 )
 
@@ -54,3 +58,26 @@ class ApplyFactorsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ChangePointTests(unittest.TestCase):
+    def test_collapses_repeated_factors(self) -> None:
+        dates = [date(2024, 1, 2), date(2024, 1, 3), date(2024, 6, 20), date(2024, 6, 21)]
+        factors = [Decimal("1"), Decimal("1"), Decimal("0.5"), Decimal("0.5")]
+        changes = collapse_to_changes(dates, factors)
+        self.assertEqual([c.factor for c in changes], [Decimal("1"), Decimal("0.5")])
+        self.assertEqual(changes[1].effect_date, date(2024, 6, 20))
+
+    def test_unsorted_dates_are_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            collapse_to_changes([date(2024, 6, 20), date(2024, 1, 2)], [Decimal("1"), Decimal("1")])
+
+    def test_factor_on_forward_fills(self) -> None:
+        changes = (
+            FactorChange(date(2024, 6, 20), Decimal("0.5")),
+            FactorChange(date(2025, 6, 20), Decimal("0.25")),
+        )
+        self.assertIsNone(factor_on(changes, date(2024, 1, 2)))
+        self.assertEqual(factor_on(changes, date(2024, 6, 20)), Decimal("0.5"))
+        self.assertEqual(factor_on(changes, date(2025, 1, 2)), Decimal("0.5"))
+        self.assertEqual(factor_on(changes, date(2026, 1, 2)), Decimal("0.25"))
