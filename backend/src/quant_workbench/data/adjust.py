@@ -31,6 +31,18 @@ def derive_adjustment_factors(
     return tuple(factors)
 
 
+def apply_factors(prices: Sequence[Decimal], factors: Sequence[Decimal]) -> tuple[Decimal, ...]:
+    """Scale prices by their per-session factor; returns the adjusted series."""
+    if len(prices) != len(factors):
+        raise ValueError(f"prices and factors differ in length: {len(prices)} vs {len(factors)}")
+    adjusted = []
+    for index, (price, factor) in enumerate(zip(prices, factors)):
+        if price <= 0 or factor <= 0:
+            raise ValueError(f"non-positive price or factor at index {index}")
+        adjusted.append(price * factor)
+    return tuple(adjusted)
+
+
 def normalize_to_latest(factors: Sequence[Decimal]) -> tuple[Decimal, ...]:
     """Rescale factors so the last session is 1.0, matching forward adjustment."""
     if not factors:
