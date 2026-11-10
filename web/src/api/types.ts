@@ -213,7 +213,8 @@ export interface Candle {
 }
 
 export interface StockStats {
-  chg_20d_pct: number;
+  /** 历史不足 20 个交易日时为 null */
+  chg_20d_pct: number | null;
   low_open: {
     hits: number;
     samples: number;
@@ -229,28 +230,32 @@ export interface StockStats {
 export interface Stock {
   meta: DataMeta;
   code: string;
-  name: string;
+  /** 库里尚无股票名称，可能为 null，页面回落到代码 */
+  name: string | null;
   board: string;
   /** 行业分类尚未验证，不可用时为 null */
   industry: string | null;
   concepts: string[];
   trade_status: 'normal' | 'suspended' | 'st';
-  price: number;
-  chg_pct: number;
+  /** 无成交时为 null，不用 0 冒充 */
+  price: number | null;
+  chg_pct: number | null;
   /** 换手率，百分数 0–100 */
   turnover_pct: number | null;
   /** 成交额，单位：元 */
-  amount: number;
+  amount: number | null;
   /** 流通市值，单位：元；缺股本数据时为 null */
   mcap: number | null;
   stats: StockStats;
-  /** 当日与大盘/板块的关系，用于判断低开高走是共振还是逆势 */
+  /** 当日与大盘/板块的关系；没有指数或板块数据时为 null，不猜 */
   context: {
-    market: { name: string; chg_pct: number };
+    market: { name: string; chg_pct: number } | null;
     sector: { name: string; chg_pct: number } | null;
-    relation: 'resonance' | 'contrarian' | 'flat';
+    relation: 'resonance' | 'contrarian' | 'flat' | null;
   };
   candles: Candle[];
+  /** raw = 不复权（当前库只存原始价）；adj = 前复权 */
+  price_adjustment: 'raw' | 'adj';
 }
 
 /* ---------- 筛选 ---------- */

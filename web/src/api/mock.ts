@@ -333,6 +333,7 @@ function stockPayload(state: DemoState, code: string): Stock {
       relation: base.chg_pct > 0 ? 'resonance' : 'contrarian',
     },
     candles: state === 'empty' ? [] : candlesFor(Number(code) + 7, base.price),
+    price_adjustment: 'adj',
   };
 }
 

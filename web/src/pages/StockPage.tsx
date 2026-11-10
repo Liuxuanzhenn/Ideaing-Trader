@@ -132,7 +132,8 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
       <div className="view-head">
         <div>
           <h2 className="view-title">
-            {data.name} <span className="num muted" style={{ fontSize: 15 }}>{data.code}</span>
+            {data.name ?? data.code}{' '}
+            <span className="num muted" style={{ fontSize: 15 }}>{data.name ? data.code : ''}</span>
             <StatusChip level={data.meta.status.level} />
           </h2>
           <div className="view-sub">
@@ -140,10 +141,15 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
             {data.concepts.slice(0, 3).join(' · ')} · 示例数据
           </div>
           <div className="quote-line">
-            <span className={`quote-price ${toneOf(data.chg_pct)}`}>{fmt(data.price)}</span>
-            <span className={`quote-chg ${toneOf(data.chg_pct)}`}>{pct(data.chg_pct)}</span>
+            <span className={`quote-price ${data.chg_pct === null ? 'flat' : toneOf(data.chg_pct)}`}>
+              {data.price === null ? '—' : fmt(data.price)}
+            </span>
+            <span className={`quote-chg ${data.chg_pct === null ? 'flat' : toneOf(data.chg_pct)}`}>
+              {data.chg_pct === null ? '—' : pct(data.chg_pct)}
+            </span>
             <span className="quote-meta">
-              成交 {yuan(data.amount)} · 换手 {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`} · 市值{' '}
+              成交 {data.amount === null ? '—' : yuan(data.amount)} · 换手{' '}
+              {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`} · 市值{' '}
               {data.mcap === null ? '—' : yuan(data.mcap)}
             </span>
           </div>
@@ -164,7 +170,13 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
       {(() => {
         const range = rangeStats(data.candles);
         const relationText =
-          data.context.relation === 'resonance' ? '共振' : data.context.relation === 'contrarian' ? '逆势' : '同步';
+          data.context.relation === 'resonance'
+            ? '共振'
+            : data.context.relation === 'contrarian'
+              ? '逆势'
+              : data.context.relation === 'flat'
+                ? '同步'
+                : '—';
         return (
           <div className="card section">
             <div className="card-head">
@@ -175,10 +187,14 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
             <div className="stat4">
               <div className="stat">
                 <div className="k">现价</div>
-                <div className={`v ${toneOf(data.chg_pct)}`}>
-                  {fmt(data.price)} <span className="small">{pct(data.chg_pct)}</span>
+                <div className={`v ${data.chg_pct === null ? 'flat' : toneOf(data.chg_pct)}`}>
+                  {data.price === null ? '—' : fmt(data.price)}{' '}
+                  <span className="small">{data.chg_pct === null ? '' : pct(data.chg_pct)}</span>
                 </div>
-                <div className="s">成交 {yuan(data.amount)} · 换手 {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`}</div>
+                <div className="s">
+                  成交 {data.amount === null ? '—' : yuan(data.amount)} · 换手{' '}
+                  {data.turnover_pct === null ? '—' : `${data.turnover_pct}%`}
+                </div>
               </div>
 
               <div className="stat">
@@ -190,7 +206,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
                   {data.stats.low_open.hits}/{data.stats.low_open.samples} 笔 · {data.stats.low_open.window} 日窗口
                 </div>
                 <div className="s ctx">
-                  今日 大盘 {pct(data.context.market.chg_pct)}
+                  今日 大盘 {data.context.market === null ? '—' : pct(data.context.market.chg_pct)}
                   {data.context.sector ? ` · ${data.context.sector.name} ${pct(data.context.sector.chg_pct)}` : ''}
                   <b className={data.context.relation === 'resonance' ? 'up' : data.context.relation === 'contrarian' ? 'down' : 'flat'}>
                     {relationText}
@@ -206,7 +222,9 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
 
               <div className="stat">
                 <div className="k">近 20 日涨幅</div>
-                <div className={`v ${toneOf(data.stats.chg_20d_pct)}`}>{pct(data.stats.chg_20d_pct)}</div>
+                <div className={`v ${data.stats.chg_20d_pct === null ? 'flat' : toneOf(data.stats.chg_20d_pct)}`}>
+                  {data.stats.chg_20d_pct === null ? '—' : pct(data.stats.chg_20d_pct)}
+                </div>
                 <div className="s">流通市值 {data.mcap === null ? '—' : yuan(data.mcap)}</div>
               </div>
             </div>
@@ -245,7 +263,9 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
       <div className="card section">
         <div className="card-head">
           <span className="card-title">日 K · 均线 · 成交量 · MACD</span>
-          <span className="card-sub">{data.candles.length} 个交易日 · 前复权</span>
+          <span className="card-sub">
+            {data.candles.length} 个交易日 · {data.price_adjustment === 'adj' ? '前复权' : '不复权'}
+          </span>
         </div>
         <div className="kline-toolbar">
           <div className="seg" role="tablist" aria-label="K 线周期">
@@ -377,14 +397,16 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
                 >
                   <td>
                     <div className="stock-cell">
-                      <span className="n">{stock.name}</span>
+                      <span className="n">{stock.name ?? stock.code}</span>
                       <span className="c">{stock.code}</span>
                     </div>
                   </td>
-                  <td className="num">{fmt(stock.price)}</td>
-                  <td className={`num ${toneOf(stock.chg_pct)}`}>{pct(stock.chg_pct)}</td>
+                  <td className="num">{stock.price === null ? '—' : fmt(stock.price)}</td>
+                  <td className={`num ${stock.chg_pct === null ? 'flat' : toneOf(stock.chg_pct)}`}>
+                    {stock.chg_pct === null ? '—' : pct(stock.chg_pct)}
+                  </td>
                   <td className="num">{stock.turnover_pct === null ? '—' : `${stock.turnover_pct}%`}</td>
-                  <td className="num">{yuan(stock.amount)}</td>
+                  <td className="num">{stock.amount === null ? '—' : yuan(stock.amount)}</td>
                   <td className="num">{stock.stats.max_ladder} 板</td>
                   <td style={{ textAlign: 'right' }}>
                     <button className="btn btn-small" onClick={() => onOpenStock(stock.code)}>打开</button>{' '}

@@ -85,6 +85,82 @@ export async function fetchLiveStatus(): Promise<import('./types').ServiceStatus
 }
 
 
+interface LiveStock {
+  meta: LiveMeta;
+  code: string;
+  name: string | null;
+  board: string;
+  trade_status: 'normal' | 'suspended' | 'st';
+  price: number | null;
+  chg_pct: number | null;
+  turnover_pct: number | null;
+  amount: number | null;
+  mcap: number | null;
+  stats: {
+    chg_20d_pct: number | null;
+    low_open: { hits: number; samples: number; window: number; version: string; rate: number | null };
+    limit_250: number;
+    max_ladder: number;
+  };
+  candles: { trade_date: string; open: number; high: number; low: number; close: number; volume: number }[];
+  price_adjustment: 'raw' | 'adj';
+  industry: string | null;
+  concepts: string[];
+}
+
+export async function fetchLiveStock(code: string): Promise<import('./types').Stock> {
+  const stock = await getJson<LiveStock>(`/api/stocks/${encodeURIComponent(code)}`);
+  return {
+    meta: {
+      as_of: stock.meta.as_of,
+      updated_at: stock.meta.updated_at,
+      snapshot: stock.meta.snapshot_id,
+      status: {
+        level: stock.meta.level as import('./types').DataStatusLevel,
+        failed_sources: stock.meta.failed_sources,
+      },
+      coverage: {
+        total: stock.meta.coverage?.instruments ?? 0,
+        pct: stock.meta.coverage?.pct ?? null,
+      },
+    },
+    code: stock.code,
+    name: stock.name,
+    board: stock.board,
+    industry: stock.industry,
+    concepts: stock.concepts,
+    trade_status: stock.trade_status,
+    price: stock.price,
+    chg_pct: stock.chg_pct,
+    turnover_pct: stock.turnover_pct,
+    amount: stock.amount,
+    mcap: stock.mcap,
+    stats: {
+      chg_20d_pct: stock.stats.chg_20d_pct,
+      low_open: {
+        hits: stock.stats.low_open.hits,
+        samples: stock.stats.low_open.samples,
+        rate: stock.stats.low_open.rate,
+        window: stock.stats.low_open.window,
+        version: stock.stats.low_open.version,
+      },
+      limit_250: stock.stats.limit_250,
+      max_ladder: stock.stats.max_ladder,
+    },
+    // The backend does not serve index or sector context yet; null keeps the page honest.
+    context: { market: null, sector: null, relation: null },
+    candles: stock.candles.map((candle) => ({
+      date: candle.trade_date,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+      volume: candle.volume,
+    })),
+    price_adjustment: stock.price_adjustment,
+  };
+}
+
 /** Blocks the backend cannot serve yet; the page must say so instead of showing zeros. */
 export function liveGaps(review: LiveReview): string[] {
   const gaps: string[] = [];

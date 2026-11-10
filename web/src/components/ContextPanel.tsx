@@ -70,15 +70,19 @@ export function ContextPanel({
               return (
                 <>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <strong style={{ fontSize: 16 }}>{item.name}</strong>
+                    <strong style={{ fontSize: 16 }}>{item.name ?? item.code}</strong>
                     <span className="num muted small">{item.code}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, margin: '6px 0 2px' }}>
-                    <span className={`num ${toneOf(item.chg_pct)}`} style={{ fontSize: 24 }}>{fmt(item.price)}</span>
-                    <span className={toneOf(item.chg_pct)}>{pct(item.chg_pct)}</span>
+                    <span className={`num ${item.chg_pct === null ? 'flat' : toneOf(item.chg_pct)}`} style={{ fontSize: 24 }}>
+                      {item.price === null ? '—' : fmt(item.price)}
+                    </span>
+                    <span className={item.chg_pct === null ? 'flat' : toneOf(item.chg_pct)}>
+                      {item.chg_pct === null ? '—' : pct(item.chg_pct)}
+                    </span>
                   </div>
                   <dl className="ctx-kv" style={{ fontSize: 13, marginTop: 10 }}>
-                    <dt>成交额</dt><dd className="num">{yuan(item.amount)}</dd>
+                    <dt>成交额</dt><dd className="num">{item.amount === null ? '—' : yuan(item.amount)}</dd>
                     <dt>换手率</dt><dd className="num">{item.turnover_pct === null ? '—' : `${item.turnover_pct}%`}</dd>
                     <dt>连板上限</dt><dd className="num">{item.stats.max_ladder} 板</dd>
                     <dt>近 250 日涨停</dt><dd className="num">{item.stats.limit_250} 次</dd>
