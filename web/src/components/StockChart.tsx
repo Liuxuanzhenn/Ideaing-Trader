@@ -1,34 +1,28 @@
-import { useMemo, useRef, useState } from 'react';
+/**
+ * K 线图由 lightweight-charts 渲染（L1 直接依赖，Apache-2.0，v5.2.1）。
+ * 之前这里是手绘 SVG，按 TECHNICAL-DESIGN §9.5「不自研 K 线绘图」改为成熟组件：
+ * 缩放、平移、十字光标、坐标轴与副图都由库负责，本文件只做数据映射与指标计算。
+ * 来源与许可证登记见 research/REUSE-REGISTER.md。
+ */
+import { useEffect, useRef } from 'react';
+import {
+  CandlestickSeries,
+  HistogramSeries,
+  LineSeries,
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  type SeriesType,
+  type Time,
+} from 'lightweight-charts';
 import type { Candle } from '../api/types';
-import { fmt, pct } from '../lib/format';
 
 export type KPeriod = 'day' | 'week' | 'month';
 export type KIndicator = 'macd' | 'kdj' | 'rsi';
 
-const W = 900;
-const AXIS_W = 56;
-const LEFT = 6;
-const RIGHT = LEFT + (W - AXIS_W - LEFT * 2) ;
-
-const MAIN_TOP = 10;
-const MAIN_H = 248;
-const VOL_TOP = MAIN_TOP + MAIN_H + 16;
-const VOL_H = 58;
-const IND_TOP = VOL_TOP + VOL_H + 18;
-const IND_H = 86;
-const DATE_Y = IND_TOP + IND_H + 16;
-const H = DATE_Y + 14;
-
-function ema(values: number[], span: number): number[] {
-  const k = 2 / (span + 1);
-  const out: number[] = [];
-  let prev = values[0];
-  for (const v of values) {
-    prev = v * k + prev * (1 - k);
-    out.push(prev);
-  }
-  return out;
-}
+const UP = '#e04b4b';
+const DOWN = '#2fa36b';
+const MUTED = '#8a8a92';
 
 function sma(values: number[], span: number): (number | null)[] {
   const out: (number | null)[] = [];
@@ -41,6 +35,23 @@ function sma(values: number[], span: number): (number | null)[] {
   return out;
 }
 
+function ema(values: number[], span: number): number[] {
+  const k = 2 / (span + 1);
+  let prev = values[0] ?? 0;
+  return values.map((value) => {
+    prev = value * k + prev * (1 - k);
+    return prev;
+  });
+}
+
+function macd(closes: number[]) {
+  const fast = ema(closes, 12);
+  const slow = ema(closes, 26);
+  const dif = closes.map((_, i) => fast[i] - slow[i]);
+  const dea = ema(dif, 9);
+  return { dif, dea, hist: dif.map((value, i) => (value - dea[i]) * 2) };
+}
+
 function kdj(candles: Candle[]) {
   const k: number[] = [];
   const d: number[] = [];
@@ -48,11 +59,10 @@ function kdj(candles: Candle[]) {
   let prevK = 50;
   let prevD = 50;
   candles.forEach((candle, i) => {
-    const from = Math.max(0, i - 8);
-    const window = candles.slice(from, i + 1);
-    const hh = Math.max(...window.map((c) => c.high));
-    const ll = Math.min(...window.map((c) => c.low));
-    const rsv = hh === ll ? 50 : ((candle.close - ll) / (hh - ll)) * 100;
+    const window = candles.slice(Math.max(0, i - 8), i + 1);
+    const high = Math.max(...window.map((item) => item.high));
+    const low = Math.min(...window.map((item) => item.low));
+    const rsv = high === low ? 50 : ((candle.close - low) / (high - low)) * 100;
     prevK = (2 / 3) * prevK + (1 / 3) * rsv;
     prevD = (2 / 3) * prevD + (1 / 3) * prevK;
     k.push(prevK);
@@ -63,42 +73,33 @@ function kdj(candles: Candle[]) {
 }
 
 function rsi(closes: number[], span = 14): number[] {
-  const out: number[] = [];
+  const out: number[] = [50];
   let gain = 0;
   let loss = 0;
-  for (let i = 0; i < closes.length; i += 1) {
-    if (i === 0) { out.push(50); continue; }
+  for (let i = 1; i < closes.length; i += 1) {
     const diff = closes[i] - closes[i - 1];
-    const up = Math.max(0, diff);
-    const down = Math.max(0, -diff);
-    if (i <= span) {
-      gain += up;
-      loss += down;
-      out.push(50);
-    } else {
-      gain = (gain * (span - 1) + up) / span;
-      loss = (loss * (span - 1) + down) / span;
-      out.push(loss === 0 ? 100 : 100 - 100 / (1 + gain / loss));
-    }
+    gain = i <= span ? gain + Math.max(0, diff) : (gain * (span - 1) + Math.max(0, diff)) / span;
+    loss = i <= span ? loss + Math.max(0, -diff) : (loss * (span - 1) + Math.max(0, -diff)) / span;
+    out.push(i <= span ? 50 : loss === 0 ? 100 : 100 - 100 / (1 + gain / loss));
   }
   return out;
 }
 
-/** 日线聚合成周/月（按 5 / 20 个交易日近似，真实实现由后端按自然周月聚合）。 */
+/** 周/月按 5 / 20 个交易日近似聚合；真实自然周由后端按日历聚合。 */
 function aggregate(candles: Candle[], period: KPeriod): Candle[] {
   if (period === 'day') return candles;
   const size = period === 'week' ? 5 : 20;
   const out: Candle[] = [];
   for (let i = 0; i < candles.length; i += size) {
     const chunk = candles.slice(i, i + size);
-    if (chunk.length === 0) continue;
+    if (!chunk.length) continue;
     out.push({
       date: chunk[chunk.length - 1].date,
       open: chunk[0].open,
       close: chunk[chunk.length - 1].close,
-      high: Math.max(...chunk.map((c) => c.high)),
-      low: Math.min(...chunk.map((c) => c.low)),
-      volume: chunk.reduce((sum, c) => sum + c.volume, 0),
+      high: Math.max(...chunk.map((item) => item.high)),
+      low: Math.min(...chunk.map((item) => item.low)),
+      volume: chunk.reduce((sum, item) => sum + item.volume, 0),
     });
   }
   return out;
@@ -110,288 +111,123 @@ const IND_LABEL: Record<KIndicator, string> = {
   rsi: 'RSI(14)',
 };
 
-/** 通达信风格：主图 K 线 + 均线，副图成交量与指标，悬停十字光标与浮窗。 */
 export function StockChart({
   candles: raw,
-  period = 'day',
-  indicator = 'macd',
+  period,
+  indicator,
 }: {
   candles: Candle[];
-  period?: KPeriod;
-  indicator?: KIndicator;
+  period: KPeriod;
+  indicator: KIndicator;
 }) {
-  const candles = useMemo(() => aggregate(raw, period), [raw, period]);
-  const [hover, setHover] = useState<number | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<SeriesType>[]>([]);
 
-  const model = useMemo(() => {
-    if (candles.length === 0) return null;
-    const closes = candles.map((c) => c.close);
-    const dif = ema(closes, 12).map((v, i) => v - ema(closes, 26)[i]);
-    const dea = ema(dif, 9);
-    return {
-      closes,
-      ma5: sma(closes, 5),
-      ma10: sma(closes, 10),
-      ma20: sma(closes, 20),
-      ma60: sma(closes, 60),
-      dif,
-      dea,
-      macd: dif.map((v, i) => (v - dea[i]) * 2),
-      kdjData: kdj(candles),
-      rsiData: rsi(closes),
-      lo: Math.min(...candles.map((c) => c.low)),
-      hi: Math.max(...candles.map((c) => c.high)),
+  useEffect(() => {
+    if (!boxRef.current) return undefined;
+    const chart = createChart(boxRef.current, {
+      height: 520,
+      layout: { background: { color: 'transparent' }, textColor: MUTED, fontSize: 11, panes: { separatorColor: '#2a2a30' } },
+      grid: { vertLines: { color: 'rgba(255,255,255,.04)' }, horzLines: { color: 'rgba(255,255,255,.04)' } },
+      rightPriceScale: { borderColor: '#2a2a30' },
+      timeScale: { borderColor: '#2a2a30', rightOffset: 4 },
+      crosshair: { mode: 1 },
+    });
+    chartRef.current = chart;
+    const observer = new ResizeObserver(() => chart.applyOptions({ width: boxRef.current?.clientWidth ?? 0 }));
+    observer.observe(boxRef.current);
+    return () => {
+      observer.disconnect();
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = [];
     };
-  }, [candles]);
+  }, []);
 
-  if (candles.length === 0 || !model) return null;
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    for (const series of seriesRef.current) chart.removeSeries(series);
+    seriesRef.current = [];
 
-  const pad = (model.hi - model.lo) * 0.07 || 1;
-  const lo = model.lo - pad;
-  const hi = model.hi + pad;
+    const candles = aggregate(raw, period);
+    if (!candles.length) return;
 
-  const n = candles.length;
-  const slot = (RIGHT - LEFT) / n;
-  const bodyW = Math.max(1.4, Math.min(9, slot * 0.62));
-  const cx = (i: number) => LEFT + i * slot + slot / 2;
-  const yPrice = (v: number) => MAIN_TOP + (1 - (v - lo) / (hi - lo)) * MAIN_H;
+    const price = chart.addSeries(CandlestickSeries, {
+      upColor: UP,
+      downColor: DOWN,
+      borderUpColor: UP,
+      borderDownColor: DOWN,
+      wickUpColor: UP,
+      wickDownColor: DOWN,
+    }, 0);
+    seriesRef.current.push(price);
+    price.setData(
+      candles.map((item) => ({ time: item.date as Time, open: item.open, high: item.high, low: item.low, close: item.close })),
+    );
 
-  const maxVol = Math.max(...candles.map((c) => c.volume), 1);
-  const yVol = (v: number) => VOL_TOP + VOL_H - (v / maxVol) * VOL_H;
+    const closes = candles.map((item) => item.close);
+    for (const [span, color] of [[5, '#e0c04b'], [10, '#4b9ce0'], [20, '#b06be0'], [60, '#6b6b73']] as const) {
+      const line = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+      seriesRef.current.push(line);
+      line.setData(
+        sma(closes, span)
+          .map((value, i) => (value === null ? null : { time: candles[i].date as Time, value }))
+          .filter((point): point is { time: Time; value: number } => point !== null),
+      );
+    }
 
-  const macdMax = Math.max(...model.macd.map(Math.abs), 0.001);
-  const yMacd = (v: number) => IND_TOP + IND_H / 2 - (v / macdMax) * (IND_H / 2 - 6);
-  const yPct = (v: number) => IND_TOP + IND_H - (Math.max(0, Math.min(100, v)) / 100) * IND_H;
+    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false }, 1);
+    seriesRef.current.push(volume);
+    volume.setData(
+      candles.map((item) => ({
+        time: item.date as Time,
+        value: item.volume,
+        color: item.close >= item.open ? 'rgba(224,75,75,.55)' : 'rgba(47,163,107,.55)',
+      })),
+    );
 
-  const path = (values: (number | null)[], toY: (v: number) => number) =>
-    values
-      .map((v, i) => (v === null ? null : `${i && values[i - 1] !== null ? 'L' : 'M'}${cx(i).toFixed(1)},${toY(v).toFixed(1)}`))
-      .filter(Boolean)
-      .join(' ');
+    const draw = (values: number[], color: string) => {
+      const line = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 2);
+      seriesRef.current.push(line);
+      line.setData(values.map((value, i) => ({ time: candles[i].date as Time, value })));
+    };
+    if (indicator === 'macd') {
+      const { dif, dea } = macd(closes);
+      draw(dif, '#e0c04b');
+      draw(dea, '#4b9ce0');
+      const hist = chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, 2);
+      seriesRef.current.push(hist);
+      hist.setData(
+        macd(closes).hist.map((value, i) => ({
+          time: candles[i].date as Time,
+          value,
+          color: value >= 0 ? 'rgba(224,75,75,.6)' : 'rgba(47,163,107,.6)',
+        })),
+      );
+    } else if (indicator === 'kdj') {
+      const values = kdj(candles);
+      draw(values.k, '#e0c04b');
+      draw(values.d, '#4b9ce0');
+      draw(values.j, '#b06be0');
+    } else {
+      draw(rsi(closes), '#e0c04b');
+    }
 
-  const onMove = (event: React.MouseEvent<SVGSVGElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = (event.clientX - rect.left) / rect.width;
-    const idx = Math.round(((ratio * W) - LEFT - slot / 2) / slot);
-    setHover(idx >= 0 && idx < n ? idx : null);
-  };
+    chart.timeScale().fitContent();
+  }, [raw, period, indicator]);
 
-  const activeIndex = hover;
-  const active = activeIndex === null ? null : candles[activeIndex];
-  const prevClose = activeIndex !== null && activeIndex > 0 ? candles[activeIndex - 1].close : null;
-  const chg = active && prevClose ? ((active.close - prevClose) / prevClose) * 100 : null;
-  const tagColor = (up: boolean) => (up ? 'var(--up)' : 'var(--down)');
+  if (!raw.length) {
+    return <div className="state-block"><h4>没有 K 线数据</h4><p>该标的当日没有行情数据。</p></div>;
+  }
 
   return (
-    <div className="kline" ref={boxRef}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="kline-svg"
-        role="img"
-        aria-label={`日 K 线、成交量与 ${IND_LABEL[indicator]}`}
-        onMouseMove={onMove}
-        onMouseLeave={() => setHover(null)}
-      >
-        {/* 主图水平网格 + 右侧价格刻度 */}
-        {[0, 0.25, 0.5, 0.75, 1].map((k) => {
-          const value = hi - k * (hi - lo);
-          return (
-            <g key={`h${k}`}>
-              <line x1={LEFT} y1={yPrice(value)} x2={RIGHT} y2={yPrice(value)} stroke="rgba(255,255,255,.045)" />
-              <text x={RIGHT + 8} y={yPrice(value) + 4} fill="var(--muted-2)">{value.toFixed(2)}</text>
-            </g>
-          );
-        })}
-
-        {/* 日期刻度（贯穿三个面板的竖参考） */}
-        {candles.map((candle, i) =>
-          i % Math.ceil(n / 6) === 0 ? (
-            <g key={`d${candle.date}`}>
-              <line x1={cx(i)} y1={MAIN_TOP} x2={cx(i)} y2={DATE_Y - 12} stroke="rgba(255,255,255,.03)" />
-              <text x={cx(i)} y={DATE_Y} textAnchor="middle" fill="var(--muted-2)">{candle.date}</text>
-            </g>
-          ) : null,
-        )}
-
-        {/* K 线 */}
-        {candles.map((candle, i) => {
-          const rising = candle.close >= candle.open;
-          const color = tagColor(rising);
-          const top = yPrice(Math.max(candle.open, candle.close));
-          const bottom = yPrice(Math.min(candle.open, candle.close));
-          return (
-            <g key={candle.date}>
-              <line x1={cx(i)} y1={yPrice(candle.high)} x2={cx(i)} y2={yPrice(candle.low)} stroke={color} strokeWidth={1} />
-              <rect
-                x={cx(i) - bodyW / 2}
-                y={top}
-                width={bodyW}
-                height={Math.max(1, bottom - top)}
-                fill={color}
-                shapeRendering="crispEdges"
-              />
-            </g>
-          );
-        })}
-
-        {/* 均线 */}
-        <path d={path(model.ma5, yPrice)} fill="none" stroke="var(--text)" strokeWidth={1.1} opacity={0.92} />
-        <path d={path(model.ma10, yPrice)} fill="none" stroke="var(--muted)" strokeWidth={1} />
-        <path d={path(model.ma20, yPrice)} fill="none" stroke="var(--muted-2)" strokeWidth={1} strokeDasharray="4 3" />
-        <path d={path(model.ma60, yPrice)} fill="none" stroke="var(--muted-2)" strokeWidth={1} strokeDasharray="1 3" opacity={0.85} />
-
-        {/* 最新价参考 */}
-        <line
-          x1={LEFT}
-          y1={yPrice(model.closes[n - 1])}
-          x2={RIGHT}
-          y2={yPrice(model.closes[n - 1])}
-          stroke={tagColor(candles[n - 1].close >= candles[n - 1].open)}
-          strokeWidth={1}
-          strokeDasharray="2 4"
-          opacity={0.5}
-        />
-
-        {/* 面板分隔 */}
-        <line x1={LEFT} y1={VOL_TOP - 8} x2={W - 4} y2={VOL_TOP - 8} stroke="rgba(255,255,255,.07)" />
-        <line x1={LEFT} y1={IND_TOP - 9} x2={W - 4} y2={IND_TOP - 9} stroke="rgba(255,255,255,.07)" />
-
-        {/* 成交量 */}
-        <text x={LEFT + 2} y={VOL_TOP + 9} fill="var(--muted-2)">VOL</text>
-        <text x={RIGHT + 8} y={VOL_TOP + 9} fill="var(--muted-2)">{maxVol >= 1e8 ? `${(maxVol / 1e8).toFixed(1)}亿` : `${(maxVol / 1e4).toFixed(0)}万`}</text>
-        {candles.map((candle, i) => (
-          <rect
-            key={`v${candle.date}`}
-            x={cx(i) - bodyW / 2}
-            y={yVol(candle.volume)}
-            width={bodyW}
-            height={VOL_TOP + VOL_H - yVol(candle.volume)}
-            fill={tagColor(candle.close >= candle.open)}
-            opacity={0.5}
-          />
-        ))}
-
-        {/* 指标面板 */}
-        <text x={LEFT + 2} y={IND_TOP + 10} fill="var(--muted-2)">{IND_LABEL[indicator]}</text>
-        {indicator === 'macd' ? (
-          <>
-            <line x1={LEFT} y1={IND_TOP + IND_H / 2} x2={RIGHT} y2={IND_TOP + IND_H / 2} stroke="rgba(255,255,255,.08)" />
-            {model.macd.map((v, i) => (
-              <rect
-                key={`m${candles[i].date}`}
-                x={cx(i) - bodyW / 2}
-                y={Math.min(yMacd(v), IND_TOP + IND_H / 2)}
-                width={bodyW}
-                height={Math.max(0.5, Math.abs(yMacd(v) - (IND_TOP + IND_H / 2)))}
-                fill={v >= 0 ? 'var(--up)' : 'var(--down)'}
-                opacity={0.55}
-              />
-            ))}
-            <path d={path(model.dif, yMacd)} fill="none" stroke="var(--text)" strokeWidth={1.1} />
-            <path d={path(model.dea, yMacd)} fill="none" stroke="var(--muted)" strokeWidth={1} strokeDasharray="3 3" />
-          </>
-        ) : indicator === 'kdj' ? (
-          <>
-            {[20, 50, 80].map((line) => (
-              <line key={line} x1={LEFT} y1={yPct(line)} x2={RIGHT} y2={yPct(line)} stroke="rgba(255,255,255,.06)" strokeDasharray="3 4" />
-            ))}
-            <path d={path(model.kdjData.k, yPct)} fill="none" stroke="var(--text)" strokeWidth={1.1} />
-            <path d={path(model.kdjData.d, yPct)} fill="none" stroke="var(--muted)" strokeWidth={1} strokeDasharray="3 3" />
-            <path d={path(model.kdjData.j, yPct)} fill="none" stroke="var(--muted-2)" strokeWidth={1} opacity={0.85} />
-          </>
-        ) : (
-          <>
-            {[30, 70].map((line) => (
-              <line key={line} x1={LEFT} y1={yPct(line)} x2={RIGHT} y2={yPct(line)} stroke="rgba(255,255,255,.07)" strokeDasharray="3 4" />
-            ))}
-            <path d={path(model.rsiData, yPct)} fill="none" stroke="var(--text)" strokeWidth={1.2} />
-          </>
-        )}
-
-        {/* 十字光标 */}
-        {activeIndex !== null ? (
-          <g>
-            <line x1={cx(activeIndex)} y1={MAIN_TOP} x2={cx(activeIndex)} y2={DATE_Y - 12} stroke="rgba(255,255,255,.30)" strokeWidth={1} strokeDasharray="3 3" />
-            <line
-              x1={LEFT}
-              y1={yPrice(candles[activeIndex].close)}
-              x2={RIGHT}
-              y2={yPrice(candles[activeIndex].close)}
-              stroke="rgba(255,255,255,.18)"
-              strokeWidth={1}
-              strokeDasharray="3 3"
-            />
-            {/* 右侧价格标签 */}
-            <rect x={RIGHT + 4} y={yPrice(candles[activeIndex].close) - 8} width={AXIS_W - 8} height={16} rx={3} fill="#2a2a2e" />
-            <text x={RIGHT + 8} y={yPrice(candles[activeIndex].close) + 4} fill="var(--text)">
-              {candles[activeIndex].close.toFixed(2)}
-            </text>
-            {/* 底部日期标签 */}
-            <rect x={cx(activeIndex) - 26} y={DATE_Y - 11} width={52} height={15} rx={3} fill="#2a2a2e" />
-            <text x={cx(activeIndex)} y={DATE_Y} textAnchor="middle" fill="var(--text)">{candles[activeIndex].date}</text>
-          </g>
-        ) : null}
-
-        {/* 最新价标签 */}
-        <rect
-          x={RIGHT + 4}
-          y={yPrice(model.closes[n - 1]) - 8}
-          width={AXIS_W - 8}
-          height={16}
-          rx={3}
-          fill={tagColor(candles[n - 1].close >= candles[n - 1].open)}
-        />
-        <text
-          x={RIGHT + 8}
-          y={yPrice(model.closes[n - 1]) + 4}
-          fill="#101012"
-          style={{ fontWeight: 520 }}
-        >
-          {model.closes[n - 1].toFixed(2)}
-        </text>
-      </svg>
-
-      {active ? (
-        <div className="kline-tip">
-          <div className="kt-date">
-            {active.date}
-            {chg !== null ? <span className={chg > 0 ? 'up' : chg < 0 ? 'down' : 'flat'}>{pct(chg)}</span> : null}
-          </div>
-          <div className="kt-grid">
-            <span>开</span><b>{fmt(active.open)}</b>
-            <span>高</span><b>{fmt(active.high)}</b>
-            <span>低</span><b>{fmt(active.low)}</b>
-            <span>收</span><b className={active.close >= active.open ? 'up' : 'down'}>{fmt(active.close)}</b>
-            <span>量</span><b>{(active.volume / 1e4).toFixed(1)} 万手</b>
-            <span>MA5</span><b>{model.ma5[activeIndex!] === null ? '—' : fmt(model.ma5[activeIndex!]!)}</b>
-            <span>MA20</span><b>{model.ma20[activeIndex!] === null ? '—' : fmt(model.ma20[activeIndex!]!)}</b>
-            {indicator === 'macd' ? (
-              <>
-                <span>DIF</span><b>{model.dif[activeIndex!].toFixed(3)}</b>
-                <span>DEA</span><b>{model.dea[activeIndex!].toFixed(3)}</b>
-              </>
-            ) : indicator === 'kdj' ? (
-              <>
-                <span>K</span><b>{model.kdjData.k[activeIndex!].toFixed(1)}</b>
-                <span>D</span><b>{model.kdjData.d[activeIndex!].toFixed(1)}</b>
-              </>
-            ) : (
-              <>
-                <span>RSI14</span><b>{model.rsiData[activeIndex!].toFixed(1)}</b>
-                <span />
-              </>
-            )}
-          </div>
-        </div>
-      ) : null}
-
+    <div className="kline-box">
+      <div ref={boxRef} className="kline-canvas" />
       <div className="kline-legend">
-        <span><i className="lg-ma5" />MA5</span>
-        <span><i className="lg-ma10" />MA10</span>
-        <span><i className="lg-ma20" />MA20</span>
-        <span><i className="lg-ma60" />MA60</span>
-        <span className="kline-hint">悬停查看当日数据</span>
+        <span>MA5</span><span>MA10</span><span>MA20</span><span>MA60</span>
+        <span>{IND_LABEL[indicator]}</span>
       </div>
     </div>
   );
