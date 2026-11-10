@@ -56,6 +56,27 @@ WHERE s.trade_date = ? AND s.streak >= ?
 ORDER BY s.streak DESC, s.symbol
 """
 
+SYMBOL_BARS_SQL = """
+SELECT symbol, trade_date, open, high, low, close, preclose, volume, amount,
+       turn, is_st, is_trading
+FROM bars
+WHERE symbol = ? AND trade_date <= ?
+ORDER BY trade_date DESC
+LIMIT ?
+"""
+
+SYMBOL_BOARD_SQL = "SELECT board FROM instruments WHERE symbol = ?"
+
+RESOLVE_SYMBOL_SQL = "SELECT symbol FROM instruments WHERE right(symbol, 6) = ? ORDER BY symbol"
+
+LATEST_SESSION_SQL = "SELECT max(trade_date) FROM bars"
+
+SYMBOL_STREAK_SQL = """
+SELECT count(*), coalesce(max(streak), 0)
+FROM limit_streaks
+WHERE symbol = ? AND trade_date BETWEEN ? AND ?
+"""
+
 QUALITY_SQL = """
 SELECT check_id, scope, value, threshold, verdict, note
 FROM data_quality
@@ -104,6 +125,51 @@ def fetch_quality_checks(conn: Connection) -> list[dict[str, Any]]:
     rows = conn.execute(QUALITY_SQL).fetchall()
     keys = ("check_id", "scope", "value", "threshold", "verdict", "note")
     return [dict(zip(keys, row)) for row in rows]
+
+
+def resolve_symbol(conn: Connection, code: str) -> str:
+    """Accept `SH600000` or `600000`; a bare six-digit code must be unambiguous."""
+    text = code.strip().upper()
+    if len(text) == 8:
+        return text
+    if len(text) != 6 or not text.isdigit():
+        raise ValueError(f"invalid instrument code: {code}")
+    rows = conn.execute(RESOLVE_SYMBOL_SQL, [text]).fetchall()
+    if not rows:
+        raise KeyError(code)
+    if len(rows) > 1:
+        raise ValueError(f"ambiguous instrument code {code}: {', '.join(row[0] for row in rows)}")
+    return str(rows[0][0])
+
+
+def fetch_symbol_board(conn: Connection, symbol: str) -> str | None:
+    rows = conn.execute(SYMBOL_BOARD_SQL, [symbol]).fetchall()
+    return str(rows[0][0]) if rows else None
+
+
+def fetch_latest_session(conn: Connection) -> date | None:
+    rows = conn.execute(LATEST_SESSION_SQL).fetchall()
+    stored = rows[0][0] if rows else None
+    return date.fromisoformat(str(stored)) if stored else None
+
+
+def fetch_symbol_history(conn: Connection, symbol: str, end: date, limit: int) -> list[DailyBar]:
+    """Newest `limit` sessions up to `end`, oldest first; price-less rows are dropped."""
+    rows = conn.execute(SYMBOL_BARS_SQL, [symbol, end.isoformat(), limit]).fetchall()
+    bars = []
+    for row in reversed(rows):
+        bar = _to_bar(row)
+        if bar is not None:
+            bars.append(bar)
+    return bars
+
+
+def fetch_symbol_streaks(conn: Connection, symbol: str, start: date, end: date) -> tuple[int, int]:
+    """(sealed limit-up count, longest streak) inside the window, from the precomputed table."""
+    rows = conn.execute(SYMBOL_STREAK_SQL, [symbol, start.isoformat(), end.isoformat()]).fetchall()
+    if not rows:
+        return 0, 0
+    return int(rows[0][0]), int(rows[0][1])
 
 
 def _to_decimal(value: Any) -> Decimal:

@@ -104,3 +104,60 @@ class Review:
     indices: tuple[IndexQuote, ...] = ()
     excluded: dict[str, int] = field(default_factory=dict)
     """Why rows were dropped, e.g. {"suspended": 42, "st": 130}."""
+
+
+@dataclass(frozen=True, slots=True)
+class Candle:
+    """One session of prices in yuan and volume in shares, raw (not adjusted)."""
+
+    trade_date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+
+@dataclass(frozen=True, slots=True)
+class LowOpenStats:
+    hits: int
+    samples: int
+    window: int
+    version: str
+
+    @property
+    def rate(self) -> float | None:
+        return self.hits / self.samples if self.samples else None
+
+
+@dataclass(frozen=True, slots=True)
+class StockStats:
+    chg_20d_pct: float | None
+    low_open: LowOpenStats
+    limit_250: int
+    max_ladder: int
+
+
+@dataclass(frozen=True, slots=True)
+class StockDetail:
+    """One instrument as the UI needs it.
+
+    Fields the database cannot supply yet (`name`, `industry`, `concepts`, `mcap`)
+    stay None/empty on purpose: the page shows the code instead of inventing a label.
+    """
+
+    meta: DataMeta
+    code: str
+    name: str | None
+    board: str
+    trade_status: str
+    price: float | None
+    chg_pct: float | None
+    turnover_pct: float | None
+    amount: float | None
+    mcap: float | None
+    stats: StockStats
+    candles: tuple[Candle, ...]
+    price_adjustment: str
+    industry: str | None = None
+    concepts: tuple[str, ...] = ()

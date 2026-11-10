@@ -18,7 +18,9 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from .repository import Connection, fetch_latest_snapshot, fetch_quality_checks
+from .repository import resolve_symbol
 from .review_service import build_review
+from .stock_service import build_stock
 from .serialize import to_jsonable
 
 DEFAULT_DB_PATH = os.environ.get("QW_DB_PATH", "data/duckdb/ingest.duckdb")
@@ -90,6 +92,34 @@ def create_app(
                 snapshot_id=snapshot_id,
                 updated_at=updated_at,
                 exclude_st=exclude_st,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": "DATA_ERROR", "message": str(error)}) from error
+        finally:
+            conn.close()
+        return JSONResponse(content=to_jsonable(payload))
+
+    @app.get("/api/stocks/{code}")
+    def stock(code: str, date_param: str | None = Query(default=None, alias="date")) -> JSONResponse:
+        trade_date = None
+        if date_param is not None:
+            try:
+                trade_date = date.fromisoformat(date_param)
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail={"code": "INVALID_DATE", "message": date_param}) from error
+        conn = opener()
+        try:
+            try:
+                symbol = resolve_symbol(conn, code)
+            except KeyError as error:
+                raise HTTPException(status_code=404, detail={"code": "UNKNOWN_SYMBOL", "message": code}) from error
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            payload = build_stock(
+                conn,
+                symbol,
+                trade_date,
+                snapshot_id=snapshot_id,
+                updated_at=updated_at,
             )
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": "DATA_ERROR", "message": str(error)}) from error
