@@ -151,7 +151,7 @@ interface LiveStock {
   mcap: number | null;
   stats: {
     chg_20d_pct: number | null;
-    low_open: { hits: number; samples: number; window: number; version: string; rate: number | null };
+    low_open: { hits: number; samples: number; window: number; version: string };
     limit_250: number;
     max_ladder: number;
   };
@@ -193,7 +193,12 @@ export async function fetchLiveStock(code: string): Promise<import('./types').St
       low_open: {
         hits: stock.stats.low_open.hits,
         samples: stock.stats.low_open.samples,
-        rate: stock.stats.low_open.rate,
+        // 后端不提供 rate（contracts.LowOpenStats 只有 hits/samples/window/version），
+        // 按展示层派生：hits/samples，无样本时为 null。
+        rate:
+          stock.stats.low_open.samples > 0
+            ? stock.stats.low_open.hits / stock.stats.low_open.samples
+            : null,
         window: stock.stats.low_open.window,
         version: stock.stats.low_open.version,
       },

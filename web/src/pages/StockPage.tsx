@@ -200,7 +200,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
               <div className="stat">
                 <div className="k">低开高走率</div>
                 <div className="v">
-                  {data.stats.low_open.rate === null ? '—' : `${(data.stats.low_open.rate * 100).toFixed(1)}%`}
+                  {data.stats.low_open.rate == null ? '—' : `${(data.stats.low_open.rate * 100).toFixed(1)}%`}
                 </div>
                 <div className="s">
                   {data.stats.low_open.hits}/{data.stats.low_open.samples} 笔 · {data.stats.low_open.window} 日窗口
