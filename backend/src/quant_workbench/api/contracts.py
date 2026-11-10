@@ -125,6 +125,49 @@ class MarketExtra:
 
 
 @dataclass(frozen=True, slots=True)
+class BacktestParams:
+    """Everything needed to reproduce the run; echoed back in the report."""
+
+    strategy: str
+    strategy_label: str
+    start: date
+    end: date
+    capital: float
+    max_positions: int
+    holding_days: int
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestTrade:
+    symbol: str
+    entry_date: date
+    exit_date: date
+    quantity: float
+    entry_price: float
+    exit_price: float
+    fees: float
+    pnl: float
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestReport:
+    meta: DataMeta
+    params: BacktestParams
+    starting_capital: float
+    ending_equity: float
+    equity: tuple[tuple[date, float], ...]
+    trades: tuple[BacktestTrade, ...]
+    skips: dict[str, int]
+    total_return: float | None
+    annual_return: float | None
+    max_drawdown: float | None
+    win_rate: float | None
+    fees: float
+    fee_schedule: dict[str, float] = field(default_factory=dict)
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class ScreenRow:
     """One match. `name`, `industry` and `mcap` stay None: the database has no such columns."""
 

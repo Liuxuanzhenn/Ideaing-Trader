@@ -19,6 +19,9 @@ from fastapi.responses import JSONResponse
 
 from .repository import Connection, fetch_latest_snapshot, fetch_quality_checks
 from .repository import resolve_symbol
+from decimal import Decimal, InvalidOperation
+
+from .backtest_service import STRATEGIES, run as run_backtest_job
 from .review_service import build_review
 from .screen_service import options as screen_options, screen
 from .stock_service import build_stock
@@ -123,6 +126,56 @@ def create_app(
             raise HTTPException(status_code=404, detail={"code": "UNKNOWN_SYMBOL", "message": code}) from error
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": "DATA_ERROR", "message": str(error)}) from error
+        finally:
+            conn.close()
+        return JSONResponse(content=to_jsonable(payload))
+
+    @app.get("/api/backtests/options")
+    def backtest_options() -> JSONResponse:
+        conn = opener()
+        try:
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            from .repository import fetch_latest_session
+
+            payload = {
+                "snapshot_id": snapshot_id,
+                "updated_at": updated_at,
+                "strategies": [{"id": key, "label": label} for key, label in STRATEGIES.items()],
+                "latest_session": fetch_latest_session(conn),
+            }
+        finally:
+            conn.close()
+        return JSONResponse(content=to_jsonable(payload))
+
+    @app.post("/api/backtests")
+    async def submit_backtest(request: Request) -> JSONResponse:
+        body = await request.json()
+        strategy = body.get("strategy", "first_board")
+        try:
+            capital = Decimal(str(body.get("capital", "1000000")))
+        except (InvalidOperation, ValueError) as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_CAPITAL", "message": str(body.get("capital"))}) from error
+        try:
+            start = date.fromisoformat(body["start"]) if body.get("start") else None
+            end = date.fromisoformat(body["end"]) if body.get("end") else None
+        except (KeyError, ValueError) as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_DATE", "message": str(error)}) from error
+        conn = opener()
+        try:
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            payload = run_backtest_job(
+                conn,
+                strategy=strategy,
+                start=start,
+                end=end,
+                capital=capital,
+                max_positions=int(body.get("max_positions", 10)),
+                holding_days=int(body.get("holding_days", 5)),
+                snapshot_id=snapshot_id,
+                updated_at=updated_at,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_BACKTEST", "message": str(error)}) from error
         finally:
             conn.close()
         return JSONResponse(content=to_jsonable(payload))

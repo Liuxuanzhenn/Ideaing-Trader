@@ -116,6 +116,20 @@ JOIN bars b ON b.symbol = prev.symbol AND b.trade_date = ? AND b.is_trading AND 
 WHERE b."close" IS NOT NULL
 """
 
+STREAK_SIGNALS_SQL = """
+SELECT trade_date, symbol FROM limit_streaks
+WHERE trade_date BETWEEN ? AND ? AND streak = ?
+ORDER BY trade_date, symbol
+"""
+
+SYMBOL_RANGE_SQL = """
+SELECT symbol, trade_date, open, high, low, close, preclose, volume, amount,
+       turn, is_st, is_trading
+FROM bars
+WHERE symbol IN ({placeholders}) AND trade_date BETWEEN ? AND ?
+ORDER BY symbol, trade_date
+"""
+
 QUALITY_SQL = """
 SELECT check_id, scope, value, threshold, verdict, note
 FROM data_quality
@@ -230,6 +244,33 @@ def fetch_promotion(conn: Connection, previous: date, current: date) -> list[tup
 def fetch_prev_limit_changes(conn: Connection, previous: date, current: date) -> list[float]:
     rows = conn.execute(PREV_LIMIT_SQL, [previous.isoformat(), current.isoformat()]).fetchall()
     return [float(row[0]) for row in rows if row[0] is not None]
+
+
+def fetch_streak_signals(conn: Connection, start: date, end: date, streak: int) -> dict[date, list[str]]:
+    """Signals keyed by the session that produced them (acted on at the next open)."""
+    rows = conn.execute(STREAK_SIGNALS_SQL, [start.isoformat(), end.isoformat(), streak]).fetchall()
+    signals: dict[date, list[str]] = {}
+    for stored_date, symbol in rows:
+        signals.setdefault(date.fromisoformat(str(stored_date)), []).append(str(symbol))
+    return signals
+
+
+def fetch_bars_for_symbols(
+    conn: Connection, symbols: Sequence[str], start: date, end: date, chunk: int = 400
+) -> dict[str, list[DailyBar]]:
+    """Bars for the given symbols only; chunked so a long IN list cannot exhaust memory."""
+    out: dict[str, list[DailyBar]] = {}
+    ordered = sorted(symbols)
+    for index in range(0, len(ordered), chunk):
+        batch = ordered[index : index + chunk]
+        placeholders = ",".join("?" for _ in batch)
+        query = SYMBOL_RANGE_SQL.format(placeholders=placeholders)
+        rows = conn.execute(query, [*batch, start.isoformat(), end.isoformat()]).fetchall()
+        for row in rows:
+            bar = _to_bar(row)
+            if bar is not None:
+                out.setdefault(bar.symbol, []).append(bar)
+    return out
 
 
 def fetch_session_stats(conn: Connection, end: date, limit: int) -> list[tuple[Any, ...]]:
