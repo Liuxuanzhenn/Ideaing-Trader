@@ -294,6 +294,8 @@ interface LiveBacktestReport {
   starting_capital: number;
   ending_equity: number;
   equity: [string, number][];
+  benchmark: number[];
+  benchmark_return: number | null;
   trades: {
     symbol: string;
     entry_date: string;
@@ -407,15 +409,18 @@ function toBacktestResult(report: LiveBacktestReport): import('./types').Backtes
       total_pct: pctOf(report.total_return),
       annual_pct: pctOf(report.annual_return),
       // No benchmark series yet; 0 would read as "the index returned nothing".
-      bench_pct: null,
-      excess_pct: null,
+      bench_pct: report.benchmark_return === null ? null : report.benchmark_return * 100,
+      excess_pct:
+        report.total_return === null || report.benchmark_return === null
+          ? null
+          : (report.total_return - report.benchmark_return) * 100,
       max_dd_pct: pctOf(report.max_drawdown),
       trades: report.trades.length,
       win_rate: report.win_rate,
       fees: report.fees,
     },
     equity,
-    benchmark: [],
+    benchmark: report.benchmark,
     drawdown,
     labels: report.equity.map(([day]) => day),
     yearly: [],
@@ -435,7 +440,7 @@ function toBacktestResult(report: LiveBacktestReport): import('./types').Backtes
       params_hash: `${report.params.max_positions}仓/${report.params.holding_days}日`,
       seed: 0,
       range: `${report.params.start}..${report.params.end}`,
-      benchmark: '未计算',
+      benchmark: report.benchmark_return === null ? '无指数数据' : '沪深300',
       pool: '全市场',
       timing: '信号收盘确认，次日开盘成交',
     },
