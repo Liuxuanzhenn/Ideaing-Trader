@@ -18,7 +18,7 @@ export interface DataMeta {
     level: DataStatusLevel;
     failed_sources: string[];
   };
-  coverage: { total: number; pct: number | null };
+  coverage: { total: number | null; pct: number | null };
 }
 
 /* ---------- 复盘 ---------- */
@@ -196,7 +196,7 @@ export interface ServiceStatus {
   connection: 'online' | 'offline';
   as_of: string;
   updated_at: string;
-  coverage: { total: number; pct: number | null };
+  coverage: { total: number | null; pct: number | null };
   level: DataStatusLevel;
 }
 

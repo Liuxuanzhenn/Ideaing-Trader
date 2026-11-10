@@ -70,27 +70,35 @@ export interface LiveReview {
   market?: LiveMarket;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path, { headers: { accept: 'application/json' } });
+/**
+ * 唯一的请求出口。后端错误体有两种形状（`{message}` 和 FastAPI 的 `{detail:{message}}`），
+ * 统一在这里取消息，页面只关心一句话原因。
+ */
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { code?: string; message?: string };
-    throw new Error(body.message ?? body.code ?? `HTTP ${response.status}`);
+    const body = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      message?: string;
+      detail?: { code?: string; message?: string };
+    };
+    const detail = body.detail ?? body;
+    throw new Error(detail.message ?? detail.code ?? `HTTP ${response.status}`);
   }
   return (await response.json()) as T;
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(path, {
+const rateText = (rate: number | null | undefined, label: string) =>
+  rate == null ? `${label} 未提供` : `${label} ${rate}`;
+
+const getJson = <T,>(path: string) => request<T>(path, { headers: { accept: 'application/json' } });
+
+const postJson = <T,>(path: string, body: unknown) =>
+  request<T>(path, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { detail?: { code?: string; message?: string } };
-    throw new Error(payload.detail?.message ?? payload.detail?.code ?? `HTTP ${response.status}`);
-  }
-  return (await response.json()) as T;
-}
 
 export async function fetchLiveReview(date: string): Promise<LiveReview> {
   return getJson<LiveReview>(`/api/review?date=${encodeURIComponent(date)}`);
@@ -154,7 +162,7 @@ export async function fetchLiveStock(code: string): Promise<import('./types').St
         failed_sources: stock.meta.failed_sources,
       },
       coverage: {
-        total: stock.meta.coverage?.instruments ?? 0,
+        total: stock.meta.coverage?.instruments ?? null,
         pct: stock.meta.coverage?.pct ?? null,
       },
     },
@@ -227,7 +235,7 @@ function liveMeta(meta: LiveMeta): import('./types').DataMeta {
       failed_sources: meta.failed_sources,
     },
     coverage: {
-      total: meta.coverage?.instruments ?? 0,
+      total: meta.coverage?.instruments ?? null,
       pct: meta.coverage?.pct ?? null,
     },
   };
@@ -446,7 +454,7 @@ function toBacktestResult(report: LiveBacktestReport): import('./types').Backtes
     },
     assumptions: [
       '信号在收盘确认，成交在次日开盘；开盘涨停买不到、停牌不可成交',
-      `佣金 ${report.fee_schedule.commission_rate ?? 0} · 印花税 ${report.fee_schedule.stamp_duty_rate ?? 0} · 滑点 ${report.fee_schedule.slippage_rate ?? 0}`,
+      `佣金 ${rateText(report.fee_schedule.commission_rate, '佣金')} · 印花税 ${rateText(report.fee_schedule.stamp_duty_rate, '印花税')} · 滑点 ${rateText(report.fee_schedule.slippage_rate, '滑点')}`,
       report.note || '结果未落库，刷新页面后需重新运行',
       ...Object.entries(report.skips).map(([reason, count]) => `跳过 ${reason}：${count} 次`),
     ],
@@ -470,16 +478,11 @@ async function changePortfolio(
   method: 'POST' | 'DELETE',
   body?: unknown,
 ): Promise<import('./types').Portfolio> {
-  const response = await fetch(path, {
+  return request<import('./types').Portfolio>(path, {
     method,
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as { detail?: { message?: string } };
-    throw new Error(payload.detail?.message ?? `HTTP ${response.status}`);
-  }
-  return (await response.json()) as import('./types').Portfolio;
 }
 
 export const addLiveWatchlist = (code: string) => changePortfolio('/api/portfolio/watchlist', 'POST', { code });
@@ -509,7 +512,7 @@ export function toPageReview(review: LiveReview): Review {
         failed_sources: review.meta.failed_sources,
       },
       coverage: {
-        total: review.meta.coverage?.instruments ?? 0,
+        total: review.meta.coverage?.instruments ?? null,
         pct: review.meta.coverage?.pct ?? null,
       },
     },
