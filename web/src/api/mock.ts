@@ -209,13 +209,14 @@ function reviewPayload(state: DemoState): Review {
     indices: empty ? [] : INDICES,
     breadth: empty ? { up: 0, flat: 0, down: 0 } : { up: 3120, flat: 460, down: 1832 },
     limit: empty
-      ? { sealed_up: 0, broken_up: 0, sealed_down: 0, touched_up: 0, no_limit: 0, seal_rate: null }
+      ? { sealed_up: 0, broken_up: 0, sealed_down: 0, touched_up: 0, no_limit: 0, out_of_band: 0, seal_rate: null }
       : {
           sealed_up: 68,
           broken_up: partial ? null : 21,
           sealed_down: partial ? null : 7,
           touched_up: partial ? null : 89,
           no_limit: 3,
+          out_of_band: 0,
           seal_rate: partial ? null : 0.764,
         },
     market: empty
@@ -248,8 +249,9 @@ function reviewPayload(state: DemoState): Review {
     series: buildSeries(empty),
     sectors: empty ? [] : SECTORS,
     flows: empty ? { inflow: [], outflow: [] } : FLOWS,
-    ladder: empty ? [] : LADDER,
+    ladder: empty ? [] : LADDER.map((row) => ({ ...row, is_one_word: false })),
     news: empty ? [] : NEWS.slice(0, 3),
+    excluded: {},
   };
 }
 

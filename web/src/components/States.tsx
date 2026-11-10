@@ -42,7 +42,7 @@ export function PartialBanner({ meta }: { meta: DataMeta }) {
       <div>
         <strong>数据部分缺失</strong>：{meta.status.failed_sources.join('、') || '未知来源'} 不可用，相关指标显示为「—」。
         <span className="banner-detail">
-          覆盖率 {meta.coverage.pct}% · 数据 as_of {fmtDateTime(meta.as_of)} · 快照 {meta.snapshot}
+          覆盖率 {meta.coverage.pct === null ? '—' : `${meta.coverage.pct}%`} · 数据 as_of {fmtDateTime(meta.as_of)} · 快照 {meta.snapshot}
         </span>
       </div>
     </div>

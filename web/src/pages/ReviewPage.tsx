@@ -19,8 +19,8 @@ interface Props {
 
 const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
 
-function amountText(value: number): string {
-  if (value >= 1e12) return `${(value / 1e12).toFixed(2)} 万亿`;
+function amountText(value: number | null): string {
+  if (value === null || Number.isNaN(value)) return '—';
   if (value >= 1e8) return `${(value / 1e8).toFixed(0)} 亿`;
   return `${value.toFixed(0)} 元`;
 }
@@ -97,7 +97,8 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             <StatusChip level={meta.status.level} />
           </h2>
           <div className="view-sub">
-            更新 {fmtDateTime(meta.updated_at)} · 覆盖率 {meta.coverage.pct}%
+            更新 {fmtDateTime(meta.updated_at)} · 覆盖率 {meta.coverage.pct === null ? '—' : `${meta.coverage.pct}%`}
+            · 快照 <span title={meta.snapshot}>{meta.snapshot.slice(0, 42)}…</span>
           </div>
         </div>
       </div>
@@ -116,8 +117,24 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
         <div className="card section">
           <div className="card-note">
             真实数据已接入：指数行情、市场宽度、涨跌停、连板梯队。以下尚未接入后端，故不显示：板块表现、资金流、资讯。
-            快照 {meta.snapshot.slice(0, 46)}
+            <br />快照 <span title={meta.snapshot}>{meta.snapshot.slice(0, 42)}…</span>
           </div>
+        </div>
+      ) : null}
+
+      {data.is_trading_day && Object.keys(data.excluded).length > 0 ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div>
+            <strong>统计范围已说明</strong>：{Object.entries(data.excluded).map(([key, value]) => `${key} ${value} 条`).join(' · ')}。
+            这些行未参与市场宽度和涨跌停统计。
+          </div>
+        </div>
+      ) : null}
+      {data.is_trading_day && data.limit.out_of_band > 0 ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div><strong>涨跌停统计有越界数据</strong>：{data.limit.out_of_band} 条未计入封板/跌停统计。</div>
         </div>
       ) : null}
 
@@ -209,15 +226,15 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             <div className="tile">
               <div className="k">两市成交</div>
               <div className="v">{amountText(market.amount)}</div>
-              <DeltaChip value={prev ? (market.amount - prev.amount) / 1e12 : null} unit="yi" />
+              <DeltaChip value={prev && market.amount !== null ? (market.amount - prev.amount) / 1e12 : null} unit="yi" />
               <Spark values={series.amount.map((v) => v / 1e12)} tone="var(--muted)" />
             </div>
 
             <div className="tile">
               <div className="k">新高 / 新低</div>
               <div className="v">
-                {market.new_high_63}
-                <small>/ {market.new_low_63}</small>
+                {market.new_high_63 === null ? '—' : market.new_high_63}
+                <small>/ {market.new_low_63 === null ? '—' : market.new_low_63}</small>
               </div>
               <div className="s">63 日</div>
               <Spark values={series.new_high_63} tone="var(--muted)" />
@@ -228,9 +245,9 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
             <div className="card-head">
               <span className="card-title">连板天梯</span>
               <span className="card-sub">
-                最高 {levelKeys[0] ?? 0} 板 · {data.ladder.length} 只 · 昨涨停今中位{' '}
-                <b className={toneOf(market.prev_limit.median_pct)}>{pct(market.prev_limit.median_pct, 1)}</b> · 翻红{' '}
-                {(market.prev_limit.up_ratio * 100).toFixed(0)}%
+                最高 {levelKeys[0] ?? '—'} 板 · {data.ladder.length} 只 · 昨涨停今中位{' '}
+                <b className={market.prev_limit?.median_pct == null ? '' : toneOf(market.prev_limit.median_pct)}>{market.prev_limit?.median_pct == null ? '—' : pct(market.prev_limit.median_pct, 1)}</b> · 翻红{' '}
+                {market.prev_limit?.up_ratio === null || market.prev_limit?.up_ratio === undefined ? '—' : `${(market.prev_limit.up_ratio * 100).toFixed(0)}%`}
                 {data.promotion.length > 0 ? ' · 晋级率 ' : ''}
                 {data.promotion.map((step) => (
                   <em key={step.level} style={{ fontStyle: 'normal', marginLeft: 8 }}>
@@ -267,7 +284,9 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                               }}
                             >
                               {row.name}
-                              <span className="ind">{row.industry ?? '未分类'}</span>
+                              {row.is_one_word ? <span className="ind">一字</span> : null}
+                              {row.seal_time === null && row.industry === null ? <span className="ind">{row.code}</span> : null}
+                              {row.industry ? <span className="ind">{row.industry}</span> : null}
                             </button>
                           ))}
                         </span>

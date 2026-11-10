@@ -134,7 +134,7 @@ export function ContextPanel({
               <dt>距当前</dt>
               <dd>{data ? humanGap(data.as_of) : '—'}</dd>
               <dt>覆盖率</dt>
-              <dd className="num">{data ? `${data.coverage.pct}%` : '—'}</dd>
+              <dd className="num">{data?.coverage.pct === null ? '—' : data ? `${data.coverage.pct}%` : '—'}</dd>
               <dt>连接</dt>
               <dd>{data ? (data.connection === 'online' ? '已连接' : '已断连') : '—'}</dd>
             </dl>

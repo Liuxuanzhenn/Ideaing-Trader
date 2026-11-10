@@ -137,7 +137,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
           </h2>
           <div className="view-sub">
             {data.board} · {STATUS_TEXT[data.trade_status]} · {data.industry ?? '行业未分类'} ·{' '}
-            {data.concepts.slice(0, 3).join(' · ')}
+            {data.concepts.slice(0, 3).join(' · ')} · 示例数据
           </div>
           <div className="quote-line">
             <span className={`quote-price ${toneOf(data.chg_pct)}`}>{fmt(data.price)}</span>

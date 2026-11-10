@@ -62,6 +62,29 @@ export async function fetchLiveReview(date: string): Promise<LiveReview> {
   return getJson<LiveReview>(`/api/review?date=${encodeURIComponent(date)}`);
 }
 
+export interface LiveStatus {
+  snapshot_id: string;
+  updated_at: string;
+  warning_count: number;
+}
+
+function snapshotDate(snapshot: string): string {
+  const match = snapshot.match(/\.\.(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? new Date().toISOString().slice(0, 10);
+}
+
+export async function fetchLiveStatus(): Promise<import('./types').ServiceStatus> {
+  const status = await getJson<LiveStatus>('/api/data-status');
+  return {
+    connection: 'online',
+    as_of: snapshotDate(status.snapshot_id),
+    updated_at: status.updated_at,
+    coverage: { total: 0, pct: null },
+    level: 'ok',
+  };
+}
+
+
 /** Blocks the backend cannot serve yet; the page must say so instead of showing zeros. */
 export function liveGaps(review: LiveReview): string[] {
   const gaps: string[] = [];
@@ -84,7 +107,7 @@ export function toPageReview(review: LiveReview): Review {
       },
       coverage: {
         total: review.meta.coverage?.instruments ?? 0,
-        pct: review.meta.coverage?.pct ?? 0,
+        pct: review.meta.coverage?.pct ?? null,
       },
     },
     is_trading_day: review.is_trading_day,
@@ -102,12 +125,32 @@ export function toPageReview(review: LiveReview): Review {
       sealed_down: review.limits.sealed_down,
       touched_up: review.limits.touched_up,
       no_limit: review.limits.no_limit,
+      out_of_band: review.limits.out_of_band,
       seal_rate: review.limits.seal_rate,
     },
-    market: { limit_up: review.limits.sealed_up, limit_down: review.limits.sealed_down, out_of_band: review.limits.out_of_band, excluded },
+    market: {
+      amount: null,
+      new_high_63: null,
+      new_low_63: null,
+      prev_limit: null,
+    },
     promotion: [],
     prev: null,
-    series: { indices: [] },
+    series: {
+      dates: [],
+      indices: [],
+      sealed_up: [],
+      sealed_down: [],
+      broken_up: [],
+      seal_rate: [],
+      max_ladder: [],
+      ladder_count: [],
+      amount: [],
+      red_ratio: [],
+      new_high_63: [],
+      new_low_63: [],
+      promotion_rate: [],
+    },
     sectors: [],
     flows: { inflow: [], outflow: [] },
     ladder: review.ladder.map((entry) => ({
@@ -115,9 +158,11 @@ export function toPageReview(review: LiveReview): Review {
       // Names are not stored yet; showing the code beats showing an empty cell.
       name: entry.name ?? entry.symbol,
       ladder: entry.streak,
+      is_one_word: entry.is_one_word,
       industry: null,
       seal_time: null,
     })),
     news: [],
+    excluded,
   } as unknown as Review;
 }

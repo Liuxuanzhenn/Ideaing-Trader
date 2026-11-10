@@ -93,7 +93,7 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
             条件筛选
             <StatusChip level={opt.meta.status.level} />
           </h2>
-          <div className="view-sub">AND 组合 · 数据 as_of {opt.meta.as_of.slice(0, 10)}</div>
+          <div className="view-sub">AND 组合 · 数据 as_of {opt.meta.as_of.slice(0, 10)} · 示例数据</div>
         </div>
       </div>
 

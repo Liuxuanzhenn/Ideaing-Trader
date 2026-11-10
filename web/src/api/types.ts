@@ -18,7 +18,7 @@ export interface DataMeta {
     level: DataStatusLevel;
     failed_sources: string[];
   };
-  coverage: { total: number; pct: number };
+  coverage: { total: number; pct: number | null };
 }
 
 /* ---------- 复盘 ---------- */
@@ -49,6 +49,8 @@ export interface LimitStats {
   touched_up: number | null;
   /** 当日无涨跌幅限制的只数（新股窗口等），统计涨跌停率时应排除 */
   no_limit: number;
+  /** 越界数据行数，不能计入涨跌停统计 */
+  out_of_band: number;
   /** 封板率 = sealed_up / touched_up，小数 0–1；无样本时为 null */
   seal_rate: number | null;
 }
@@ -57,6 +59,7 @@ export interface LadderRow {
   code: string;
   name: string;
   ladder: number;
+  is_one_word: boolean;
   /** 行业分类尚未验证，不可用时为 null */
   industry: string | null;
   /** 封板时间需要分钟线，可为 null */
@@ -76,13 +79,13 @@ export interface NewsItem {
 }
 
 export interface MarketExtra {
-  /** 两市成交额，单位：元 */
-  amount: number;
-  /** 63 日新高/新低家数 */
-  new_high_63: number;
-  new_low_63: number;
-  /** 昨日涨停股今日表现 */
-  prev_limit: { median_pct: number; up_ratio: number; samples: number };
+  /** 两市成交额，单位：元；后端尚未提供时为 null */
+  amount: number | null;
+  /** 63 日新高/新低家数；后端尚未提供时为 null */
+  new_high_63: number | null;
+  new_low_63: number | null;
+  /** 昨日涨停股今日表现；后端尚未提供时为 null */
+  prev_limit: { median_pct: number | null; up_ratio: number | null; samples: number | null } | null;
 }
 
 export interface PromotionStep {
@@ -159,6 +162,8 @@ export interface Review {
   flows: { inflow: StockFlow[]; outflow: StockFlow[] };
   ladder: LadderRow[];
   news: NewsItem[];
+  /** 被排除的原始行，按原因计数 */
+  excluded: Record<string, number>;
 }
 
 /* ---------- 任务 ---------- */
@@ -191,7 +196,7 @@ export interface ServiceStatus {
   connection: 'online' | 'offline';
   as_of: string;
   updated_at: string;
-  coverage: { total: number; pct: number };
+  coverage: { total: number; pct: number | null };
   level: DataStatusLevel;
 }
 
