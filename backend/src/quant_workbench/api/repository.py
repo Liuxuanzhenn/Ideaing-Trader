@@ -8,7 +8,7 @@ models here so nothing downstream sees floats or SQL types.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Protocol, Sequence
 
@@ -28,6 +28,20 @@ INSTRUMENTS_SQL = "SELECT symbol, first_trade_date FROM instruments"
 
 SESSIONS_SQL = "SELECT DISTINCT trade_date FROM bars ORDER BY trade_date"
 
+LATEST_SNAPSHOT_SQL = """
+SELECT snapshot_id, max(recorded_at)
+FROM data_quality
+GROUP BY snapshot_id
+ORDER BY max(recorded_at) DESC
+LIMIT 1
+"""
+
+QUALITY_SQL = """
+SELECT check_id, scope, value, threshold, verdict, note
+FROM data_quality
+ORDER BY verdict, check_id
+"""
+
 
 class Connection(Protocol):
     """Subset of the duckdb connection used here; keeps tests dependency-free."""
@@ -44,6 +58,24 @@ def fetch_first_trade_dates(conn: Connection) -> dict[str, date]:
 def fetch_sessions(conn: Connection) -> list[date]:
     rows = conn.execute(SESSIONS_SQL).fetchall()
     return [date.fromisoformat(stored) for (stored,) in rows]
+
+
+def fetch_latest_snapshot(conn: Connection) -> tuple[str, datetime]:
+    """Newest recorded data-quality snapshot; the only honest source for updated_at."""
+    rows = conn.execute(LATEST_SNAPSHOT_SQL).fetchall()
+    if not rows or rows[0][0] is None:
+        raise ValueError("data_quality holds no snapshot; refusing to report unknown provenance")
+    snapshot_id, recorded_at = rows[0]
+    stamp = datetime.fromisoformat(str(recorded_at).replace("Z", "+00:00"))
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return str(snapshot_id), stamp
+
+
+def fetch_quality_checks(conn: Connection) -> list[dict[str, Any]]:
+    rows = conn.execute(QUALITY_SQL).fetchall()
+    keys = ("check_id", "scope", "value", "threshold", "verdict", "note")
+    return [dict(zip(keys, row)) for row in rows]
 
 
 def _to_decimal(value: Any) -> Decimal:

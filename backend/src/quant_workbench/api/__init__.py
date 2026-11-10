@@ -1,4 +1,4 @@
-"""HTTP contract for the review endpoint."""
+"""HTTP contract and application for the workbench API."""
 
 from .contracts import (
     EMPTY,
