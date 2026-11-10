@@ -25,7 +25,9 @@ class FakeConnection:
         self.closed = False
 
     def execute(self, query, parameters=None):
-        if "FROM index_bars" in query:
+        if "IS NULL" in query:
+            rows = [(0,)]
+        elif "FROM index_bars" in query:
             rows = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
         elif "FROM limit_streaks" in query:
             rows = [("SZ300446", 25, True)]

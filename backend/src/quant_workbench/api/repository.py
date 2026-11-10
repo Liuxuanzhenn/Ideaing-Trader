@@ -24,6 +24,11 @@ ORDER BY symbol
 
 SESSION_COUNT_SQL = "SELECT count(*) FROM bars WHERE trade_date = ?"
 
+NULL_PRICE_SQL = """
+SELECT count(*) FROM bars
+WHERE trade_date = ? AND "close" IS NULL
+"""
+
 INSTRUMENTS_SQL = "SELECT symbol, first_trade_date FROM instruments"
 
 SESSIONS_SQL = "SELECT DISTINCT trade_date FROM bars ORDER BY trade_date"
@@ -121,8 +126,24 @@ def _idle_value(value: Any) -> Decimal:
 
 
 def fetch_session_bars(conn: Connection, trade_date: date) -> list[DailyBar]:
+    """Bars with usable prices.
+
+    A suspended session occasionally arrives with every price column NULL; such a row
+    carries no price and is dropped here, then reported by `fetch_null_price_count` so
+    the caller can say how many rows it set aside instead of inventing a zero price.
+    """
     rows = conn.execute(ONE_SESSION_SQL, [trade_date.isoformat()]).fetchall()
-    return [_to_bar(row) for row in rows]
+    bars = []
+    for row in rows:
+        bar = _to_bar(row)
+        if bar is not None:
+            bars.append(bar)
+    return bars
+
+
+def fetch_null_price_count(conn: Connection, trade_date: date) -> int:
+    rows = conn.execute(NULL_PRICE_SQL, [trade_date.isoformat()]).fetchall()
+    return int(rows[0][0]) if rows else 0
 
 
 def fetch_session_bar_count(conn: Connection, trade_date: date) -> int:
@@ -130,7 +151,7 @@ def fetch_session_bar_count(conn: Connection, trade_date: date) -> int:
     return int(rows[0][0]) if rows else 0
 
 
-def _to_bar(row: Sequence[Any]) -> DailyBar:
+def _to_bar(row: Sequence[Any]) -> DailyBar | None:
     (
         symbol,
         stored_date,
@@ -145,6 +166,8 @@ def _to_bar(row: Sequence[Any]) -> DailyBar:
         is_st,
         is_trading,
     ) = row
+    if close is None or open_price is None or high is None or low is None:
+        return None
     trading = bool(is_trading)
     volume_value = _traded_value(volume, symbol, "volume") if trading else _idle_value(volume)
     amount_value = _traded_value(amount, symbol, "amount") if trading else _idle_value(amount)

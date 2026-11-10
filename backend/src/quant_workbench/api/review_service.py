@@ -24,6 +24,7 @@ from .repository import (
     fetch_first_trade_dates,
     fetch_index_quotes,
     fetch_ladder,
+    fetch_null_price_count,
     fetch_session_bars,
     fetch_sessions,
 )
@@ -64,6 +65,9 @@ def build_review(
             continue
         counted.append(bar)
     excluded = {}
+    no_price = fetch_null_price_count(conn, trade_date)
+    if no_price:
+        excluded["no_price"] = no_price
     if suspended:
         excluded["suspended"] = suspended
     if st_rows:

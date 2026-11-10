@@ -24,6 +24,7 @@ class FakeConnection:
         self.bars = bars
         self.instruments = instruments if instruments is not None else [("SH600000", "2026-11-01")]
         self.indices = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
+        self.null_price = 0
         self.ladder = [("SZ300446", 25, True)]
         self.sessions = sessions if sessions is not None else [
             (f"2026-11-{day:02d}",) for day in range(1, 7)
@@ -32,7 +33,9 @@ class FakeConnection:
 
     def execute(self, query: str, parameters=None):
         self.calls.append((query, parameters))
-        if "FROM index_bars" in query:
+        if "IS NULL" in query:
+            rows = [(self.null_price,)]
+        elif "FROM index_bars" in query:
             rows = self.indices
         elif "FROM limit_streaks" in query:
             rows = self.ladder
@@ -184,3 +187,24 @@ class IndexAndLadderTests(unittest.TestCase):
         build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
         ladder_calls = [call for call in conn.calls if "FROM limit_streaks" in call[0]]
         self.assertEqual(ladder_calls[0][1], ["2026-11-06", 2])
+
+
+class NullPriceRowTests(unittest.TestCase):
+    def _null_price_row(self, symbol: str) -> tuple:
+        return (symbol, "2026-11-06", None, None, None, None, None, None, None, None, 0, False)
+
+    def test_row_without_any_price_is_dropped_not_zeroed(self) -> None:
+        conn = FakeConnection(
+            [row("SH600000", preclose=10.0, close=10.2, high=10.3), self._null_price_row("SZ000022")]
+        )
+        bars = fetch_session_bars(conn, DAY)
+        self.assertEqual([bar.symbol for bar in bars], ["SH600000"])
+
+    def test_dropped_rows_are_reported_in_excluded(self) -> None:
+        conn = FakeConnection(
+            [row("SH600000", preclose=10.0, close=10.2, high=10.3), self._null_price_row("SZ000022")]
+        )
+        conn.null_price = 1
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(review.excluded["no_price"], 1)
+        self.assertEqual(review.breadth.total, 1)
