@@ -51,7 +51,7 @@ def bar_row(symbol="SH600000", *, close=11.0, preclose=10.0, high=11.0, is_st=0)
 
 
 def client_for(conn) -> TestClient:
-    return TestClient(create_app(connect=lambda: conn))
+    return TestClient(create_app(connect=lambda: conn, allow_anonymous=True))
 
 
 class HealthTests(unittest.TestCase):
@@ -110,9 +110,38 @@ class DataStatusTests(unittest.TestCase):
         conn.execute = lambda query, parameters=None: type(
             "R", (), {"fetchall": lambda _s: []}
         )()
-        response = TestClient(create_app(connect=lambda: conn)).get("/api/data-status")
+        response = TestClient(create_app(connect=lambda: conn, allow_anonymous=True)).get("/api/data-status")
         self.assertEqual(response.status_code, 503)
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuthTests(unittest.TestCase):
+    def _client(self, **kwargs) -> TestClient:
+        return TestClient(create_app(connect=lambda: FakeConnection([bar_row()]), **kwargs))
+
+    def test_health_is_always_open(self) -> None:
+        self.assertEqual(self._client(api_token="secret").get("/health").status_code, 200)
+
+    def test_review_requires_the_token(self) -> None:
+        client = self._client(api_token="secret")
+        self.assertEqual(client.get(f"/api/review?date={DAY}").status_code, 401)
+        self.assertEqual(
+            client.get(f"/api/review?date={DAY}", headers={"authorization": "Bearer wrong"}).status_code,
+            401,
+        )
+        self.assertEqual(
+            client.get(f"/api/review?date={DAY}", headers={"authorization": "Bearer secret"}).status_code,
+            200,
+        )
+
+    def test_no_token_configuration_refuses_traffic(self) -> None:
+        response = self._client().get(f"/api/review?date={DAY}")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["code"], "NO_TOKEN_CONFIGURED")
+
+    def test_anonymous_mode_must_be_explicit(self) -> None:
+        response = self._client(allow_anonymous=True).get(f"/api/review?date={DAY}")
+        self.assertEqual(response.status_code, 200)

@@ -14,7 +14,7 @@ import os
 from datetime import date
 from typing import Callable
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from .repository import Connection, fetch_latest_snapshot, fetch_quality_checks
@@ -22,11 +22,41 @@ from .review_service import build_review
 from .serialize import to_jsonable
 
 DEFAULT_DB_PATH = os.environ.get("QW_DB_PATH", "data/duckdb/ingest.duckdb")
+OPEN_PATHS = frozenset({"/health"})
 
 
-def create_app(connect: Callable[[], Connection] | None = None) -> FastAPI:
+def create_app(
+    connect: Callable[[], Connection] | None = None,
+    *,
+    api_token: str | None = None,
+    allow_anonymous: bool = False,
+) -> FastAPI:
+    """Build the app. Without a token, requests are refused unless anonymity is
+    explicitly enabled, because this service reads private research data and has no
+    user model to fall back on."""
     app = FastAPI(title="Quant Workbench", version="0.1.0")
     opener = connect or _duckdb_opener(DEFAULT_DB_PATH)
+
+    @app.middleware("http")
+    async def require_token(request: Request, call_next):
+        if request.url.path in OPEN_PATHS:
+            return await call_next(request)
+        if api_token:
+            header = request.headers.get("authorization", "")
+            if header != f"Bearer {api_token}":
+                return JSONResponse(
+                    status_code=401,
+                    content={"code": "UNAUTHORIZED", "message": "missing or wrong bearer token"},
+                )
+        elif not allow_anonymous:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "code": "NO_TOKEN_CONFIGURED",
+                    "message": "set QW_API_TOKEN, or QW_ALLOW_ANONYMOUS=1 for local use",
+                },
+            )
+        return await call_next(request)
 
     @app.get("/health")
     def health() -> dict[str, str]:
