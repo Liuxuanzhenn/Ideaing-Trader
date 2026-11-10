@@ -23,6 +23,8 @@ class FakeConnection:
     ) -> None:
         self.bars = bars
         self.instruments = instruments if instruments is not None else [("SH600000", "2026-11-01")]
+        self.indices = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
+        self.ladder = [("SZ300446", 25, True)]
         self.sessions = sessions if sessions is not None else [
             (f"2026-11-{day:02d}",) for day in range(1, 7)
         ]
@@ -30,7 +32,11 @@ class FakeConnection:
 
     def execute(self, query: str, parameters=None):
         self.calls.append((query, parameters))
-        if "count(*)" in query:
+        if "FROM index_bars" in query:
+            rows = self.indices
+        elif "FROM limit_streaks" in query:
+            rows = self.ladder
+        elif "count(*)" in query:
             rows = [(len(self.bars),)]
         elif "FROM instruments" in query:
             rows = self.instruments
@@ -159,3 +165,22 @@ class NullVolumeTests(unittest.TestCase):
             fetch_session_bars(FakeConnection([tuple(broken)]), DAY)
         self.assertIn("SH600000", str(caught.exception))
         self.assertIn("volume", str(caught.exception))
+
+
+class IndexAndLadderTests(unittest.TestCase):
+    def test_indices_and_ladder_are_returned(self) -> None:
+        bars = [row("SH600000", preclose=10.0, close=11.0, high=11.0)]
+        review = build_review(FakeConnection(bars), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(len(review.indices), 1)
+        self.assertEqual(review.indices[0].name, "沪深300")
+        self.assertAlmostEqual(review.indices[0].close, 4012.5)
+        self.assertEqual(len(review.ladder), 1)
+        self.assertEqual(review.ladder[0].streak, 25)
+        self.assertTrue(review.ladder[0].is_one_word)
+        self.assertIsNone(review.ladder[0].name)
+
+    def test_ladder_query_asks_for_streaks_of_two_or_more(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        ladder_calls = [call for call in conn.calls if "FROM limit_streaks" in call[0]]
+        self.assertEqual(ladder_calls[0][1], ["2026-11-06", 2])

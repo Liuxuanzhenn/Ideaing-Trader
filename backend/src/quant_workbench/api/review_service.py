@@ -18,8 +18,17 @@ from quant_workbench.market.calendar import TradingCalendar
 from quant_workbench.market.limits import NEW_LISTING_SESSIONS, is_st_effective
 from quant_workbench.market.review import breadth, limit_stats
 
-from .contracts import EMPTY, OK, Breadth, DataMeta, LimitStats, Review
-from .repository import Connection, fetch_first_trade_dates, fetch_session_bars, fetch_sessions
+from .contracts import EMPTY, OK, Breadth, DataMeta, IndexQuote, LadderEntry, LimitStats, Review
+from .repository import (
+    Connection,
+    fetch_first_trade_dates,
+    fetch_index_quotes,
+    fetch_ladder,
+    fetch_session_bars,
+    fetch_sessions,
+)
+
+LADDER_MIN_STREAK = 2
 
 
 def build_review(
@@ -61,6 +70,14 @@ def build_review(
         excluded["st"] = st_rows
 
     stats = limit_stats(counted, new_listing_symbols=new_listing)
+    indices = tuple(
+        IndexQuote(code=code, name=name, close=float(close), chg_pct=float(chg), amount=float(amount))
+        for code, name, close, chg, amount in fetch_index_quotes(conn, trade_date)
+    )
+    ladder = tuple(
+        LadderEntry(symbol=symbol, streak=int(streak), is_one_word=bool(one_word))
+        for symbol, streak, one_word in fetch_ladder(conn, trade_date, LADDER_MIN_STREAK)
+    )
     return Review(
         meta=_meta(trade_date, OK, snapshot_id, updated_at),
         is_trading_day=True,
@@ -73,6 +90,8 @@ def build_review(
             out_of_band=stats.out_of_band,
         ),
         excluded=excluded,
+        indices=indices,
+        ladder=ladder,
     )
 
 

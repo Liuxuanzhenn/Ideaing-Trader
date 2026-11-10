@@ -36,6 +36,21 @@ ORDER BY max(recorded_at) DESC
 LIMIT 1
 """
 
+INDEX_QUOTES_SQL = """
+SELECT b.code, m.name, b.close, b.pct_chg, b.amount
+FROM index_bars b
+JOIN index_meta m ON m.code = b.code
+WHERE b.trade_date = ?
+ORDER BY b.code
+"""
+
+LADDER_SQL = """
+SELECT s.symbol, s.streak, s.is_one_word
+FROM limit_streaks s
+WHERE s.trade_date = ? AND s.streak >= ?
+ORDER BY s.streak DESC, s.symbol
+"""
+
 QUALITY_SQL = """
 SELECT check_id, scope, value, threshold, verdict, note
 FROM data_quality
@@ -70,6 +85,14 @@ def fetch_latest_snapshot(conn: Connection) -> tuple[str, datetime]:
     if stamp.tzinfo is None:
         stamp = stamp.replace(tzinfo=timezone.utc)
     return str(snapshot_id), stamp
+
+
+def fetch_index_quotes(conn: Connection, trade_date: date) -> list[tuple[str, str, float, float, float]]:
+    return list(conn.execute(INDEX_QUOTES_SQL, [trade_date.isoformat()]).fetchall())
+
+
+def fetch_ladder(conn: Connection, trade_date: date, min_streak: int) -> list[tuple[str, int, bool]]:
+    return list(conn.execute(LADDER_SQL, [trade_date.isoformat(), min_streak]).fetchall())
 
 
 def fetch_quality_checks(conn: Connection) -> list[dict[str, Any]]:

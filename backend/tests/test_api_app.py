@@ -25,7 +25,11 @@ class FakeConnection:
         self.closed = False
 
     def execute(self, query, parameters=None):
-        if "FROM data_quality" in query:
+        if "FROM index_bars" in query:
+            rows = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
+        elif "FROM limit_streaks" in query:
+            rows = [("SZ300446", 25, True)]
+        elif "FROM data_quality" in query:
             if "GROUP BY" in query:
                 rows = [("snapshot-abc", "2026-11-10T15:54:17+00:00")]
             else:

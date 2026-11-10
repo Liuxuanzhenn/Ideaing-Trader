@@ -88,8 +88,10 @@ class LimitStats:
 @dataclass(frozen=True, slots=True)
 class LadderEntry:
     symbol: str
-    name: str
     streak: int
+    is_one_word: bool
+    name: str | None = None
+    """Instrument names are not stored yet; the UI falls back to the code."""
 
 
 @dataclass(frozen=True, slots=True)
