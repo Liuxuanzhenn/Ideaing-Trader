@@ -1,5 +1,6 @@
 import unittest
 from datetime import date
+from unittest import mock
 
 from fastapi.testclient import TestClient
 
@@ -145,3 +146,34 @@ class AuthTests(unittest.TestCase):
     def test_anonymous_mode_must_be_explicit(self) -> None:
         response = self._client(allow_anonymous=True).get(f"/api/review?date={DAY}")
         self.assertEqual(response.status_code, 200)
+
+
+class EnvironmentConfigTests(unittest.TestCase):
+    def test_factory_reads_the_token_from_the_environment(self) -> None:
+        with mock.patch.dict("os.environ", {"QW_API_TOKEN": "env-secret"}, clear=False):
+            client = TestClient(create_app(connect=lambda: FakeConnection([bar_row()])))
+            self.assertEqual(client.get(f"/api/review?date={DAY}").status_code, 401)
+            self.assertEqual(
+                client.get(
+                    f"/api/review?date={DAY}", headers={"authorization": "Bearer env-secret"}
+                ).status_code,
+                200,
+            )
+
+    def test_explicit_argument_beats_the_environment(self) -> None:
+        with mock.patch.dict("os.environ", {"QW_API_TOKEN": "env-secret"}, clear=False):
+            client = TestClient(
+                create_app(connect=lambda: FakeConnection([bar_row()]), api_token="explicit")
+            )
+            self.assertEqual(
+                client.get(
+                    f"/api/review?date={DAY}", headers={"authorization": "Bearer explicit"}
+                ).status_code,
+                200,
+            )
+
+    def test_anonymous_flag_is_read_from_the_environment(self) -> None:
+        with mock.patch.dict("os.environ", {"QW_ALLOW_ANONYMOUS": "1"}, clear=False):
+            with mock.patch.dict("os.environ", {"QW_API_TOKEN": ""}, clear=False):
+                client = TestClient(create_app(connect=lambda: FakeConnection([bar_row()])))
+                self.assertEqual(client.get(f"/api/review?date={DAY}").status_code, 200)

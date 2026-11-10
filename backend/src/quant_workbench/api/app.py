@@ -29,11 +29,21 @@ def create_app(
     connect: Callable[[], Connection] | None = None,
     *,
     api_token: str | None = None,
-    allow_anonymous: bool = False,
+    allow_anonymous: bool | None = None,
 ) -> FastAPI:
     """Build the app. Without a token, requests are refused unless anonymity is
     explicitly enabled, because this service reads private research data and has no
-    user model to fall back on."""
+    user model to fall back on.
+
+    Both settings fall back to the environment so an ASGI factory can build the app
+    without arguments; an explicit argument always wins over the environment.
+    """
+    token = api_token if api_token is not None else os.environ.get("QW_API_TOKEN") or None
+    anonymous = (
+        allow_anonymous
+        if allow_anonymous is not None
+        else os.environ.get("QW_ALLOW_ANONYMOUS") == "1"
+    )
     app = FastAPI(title="Quant Workbench", version="0.1.0")
     opener = connect or _duckdb_opener(DEFAULT_DB_PATH)
 
@@ -41,14 +51,14 @@ def create_app(
     async def require_token(request: Request, call_next):
         if request.url.path in OPEN_PATHS:
             return await call_next(request)
-        if api_token:
+        if token:
             header = request.headers.get("authorization", "")
-            if header != f"Bearer {api_token}":
+            if header != f"Bearer {token}":
                 return JSONResponse(
                     status_code=401,
                     content={"code": "UNAUTHORIZED", "message": "missing or wrong bearer token"},
                 )
-        elif not allow_anonymous:
+        elif not anonymous:
             return JSONResponse(
                 status_code=503,
                 content={
