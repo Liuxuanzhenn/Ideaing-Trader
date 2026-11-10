@@ -75,6 +75,7 @@ class LimitStats:
     broken_up: int
     sealed_down: int
     no_limit: int
+    out_of_band: int = 0
     touched_up: int = 0
     seal_rate: float | None = None
 

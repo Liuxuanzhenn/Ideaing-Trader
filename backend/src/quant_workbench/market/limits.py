@@ -10,6 +10,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
+from quant_workbench.data import DailyBar
+
 MAIN = "main"
 GROWTH = "growth"
 STAR = "star"
@@ -19,6 +21,8 @@ GROWTH_REFORM = date(2020, 8, 24)
 
 _BOARD_BY_PREFIX = {"60": MAIN, "68": STAR, "00": MAIN, "30": GROWTH}
 _TICK = Decimal("0.01")
+ST_RATIO = Decimal("0.05")
+NEW_LISTING_SESSIONS = 5
 
 
 def board_from_symbol(symbol: str) -> str:
@@ -57,7 +61,24 @@ def limit_ratio(
 
 
 def _main_ratio(is_st: bool) -> Decimal:
-    return Decimal("0.05") if is_st else Decimal("0.10")
+    return ST_RATIO if is_st else Decimal("0.10")
+
+
+def is_st_effective(bar: DailyBar) -> bool:
+    """Trust the ST flag unless the day's own price range disproves it.
+
+    A main-board risk-warning stock is capped at 5%, so a move outside that band
+    proves the flag is stale (typically the day the warning is lifted). New boards
+    keep 20% for ST stocks, so no contradiction can be inferred there.
+    """
+    if not bar.is_st:
+        return False
+    if board_from_symbol(bar.symbol) is not MAIN:
+        return True
+    if bar.preclose is None or bar.preclose <= 0:
+        return True
+    upper, lower = limit_prices(bar.preclose, ST_RATIO)
+    return not (bar.high > upper or bar.low < lower)
 
 
 def limit_prices(preclose: Decimal, ratio: Decimal | None) -> tuple[Decimal, Decimal] | None:

@@ -80,3 +80,39 @@ class LimitPriceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EffectiveStTests(unittest.TestCase):
+    def _bar(self, **kwargs):
+        from fixtures import bar
+
+        return bar(
+            kwargs.pop("symbol", "600000"),
+            date(2026, 11, 6),
+            preclose="10.00",
+            open="10.00",
+            high=kwargs.pop("high", "10.20"),
+            low=kwargs.pop("low", "9.90"),
+            close=kwargs.pop("close", "10.10"),
+            **kwargs,
+        )
+
+    def test_non_st_bar_is_false(self) -> None:
+        from quant_workbench.market import is_st_effective
+
+        self.assertFalse(is_st_effective(self._bar()))
+
+    def test_st_bar_within_five_percent_stays_st(self) -> None:
+        from quant_workbench.market import is_st_effective
+
+        self.assertTrue(is_st_effective(self._bar(is_st=True, high="10.50", close="10.50")))
+
+    def test_st_bar_beyond_five_percent_is_contradicted(self) -> None:
+        from quant_workbench.market import is_st_effective
+
+        self.assertFalse(is_st_effective(self._bar(is_st=True, high="10.90", close="10.80")))
+
+    def test_growth_board_st_keeps_twenty_percent(self) -> None:
+        from quant_workbench.market import is_st_effective
+
+        self.assertTrue(is_st_effective(self._bar(symbol="300750", is_st=True, high="11.50", close="11.40")))

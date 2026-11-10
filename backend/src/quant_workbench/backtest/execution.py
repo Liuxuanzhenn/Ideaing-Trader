@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
 from quant_workbench.data import DailyBar
-from quant_workbench.market.limits import board_from_symbol, limit_prices, limit_ratio
+from quant_workbench.market.limits import board_from_symbol, is_st_effective, limit_prices, limit_ratio
 
 BUY = "buy"
 SELL = "sell"
@@ -94,7 +94,7 @@ def fill_at_open(
 
     ratio = limit_ratio(
         board_from_symbol(bar.symbol),
-        bar.is_st,
+        is_st_effective(bar),
         bar.trade_date,
         new_listing_window=new_listing_window,
     )

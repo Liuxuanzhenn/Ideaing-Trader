@@ -17,12 +17,13 @@ from typing import Iterable, Sequence
 
 from quant_workbench.data import DailyBar
 
-from .limits import board_from_symbol, limit_prices, limit_ratio
+from .limits import board_from_symbol, is_st_effective, limit_prices, limit_ratio
 
 SEALED_UP = "sealed_up"
 BROKEN_UP = "broken_up"
 SEALED_DOWN = "sealed_down"
 NO_LIMIT = "no_limit"
+OUT_OF_BAND = "out_of_band"
 ORDINARY = "ordinary"
 NOT_TRADED = "not_traded"
 
@@ -44,6 +45,7 @@ class LimitStats:
     broken_up: int
     sealed_down: int
     no_limit: int
+    out_of_band: int = 0
 
     @property
     def touched_up(self) -> int:
@@ -62,7 +64,7 @@ def classify_bar(bar: DailyBar, *, new_listing_window: bool = False) -> str:
         return NOT_TRADED
     ratio = limit_ratio(
         board_from_symbol(bar.symbol),
-        bar.is_st,
+        is_st_effective(bar),
         bar.trade_date,
         new_listing_window=new_listing_window,
     )
@@ -70,6 +72,8 @@ def classify_bar(bar: DailyBar, *, new_listing_window: bool = False) -> str:
     if prices is None:
         return NO_LIMIT
     upper, lower = prices
+    if bar.high > upper or bar.low < lower:
+        return OUT_OF_BAND
     if bar.close >= upper:
         return SEALED_UP
     if bar.high >= upper:
@@ -95,7 +99,7 @@ def breadth(bars: Iterable[DailyBar]) -> Breadth:
 
 
 def limit_stats(bars: Iterable[DailyBar], *, new_listing_symbols: frozenset[str] = frozenset()) -> LimitStats:
-    counts = {SEALED_UP: 0, BROKEN_UP: 0, SEALED_DOWN: 0, NO_LIMIT: 0}
+    counts = {SEALED_UP: 0, BROKEN_UP: 0, SEALED_DOWN: 0, NO_LIMIT: 0, OUT_OF_BAND: 0}
     for bar in bars:
         state = classify_bar(bar, new_listing_window=bar.symbol in new_listing_symbols)
         if state in counts:
@@ -105,6 +109,7 @@ def limit_stats(bars: Iterable[DailyBar], *, new_listing_symbols: frozenset[str]
         broken_up=counts[BROKEN_UP],
         sealed_down=counts[SEALED_DOWN],
         no_limit=counts[NO_LIMIT],
+        out_of_band=counts[OUT_OF_BAND],
     )
 
 

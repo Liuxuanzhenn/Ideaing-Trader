@@ -24,11 +24,26 @@ ORDER BY symbol
 
 SESSION_COUNT_SQL = "SELECT count(*) FROM bars WHERE trade_date = ?"
 
+INSTRUMENTS_SQL = "SELECT symbol, first_trade_date FROM instruments"
+
+SESSIONS_SQL = "SELECT DISTINCT trade_date FROM bars ORDER BY trade_date"
+
 
 class Connection(Protocol):
     """Subset of the duckdb connection used here; keeps tests dependency-free."""
 
     def execute(self, query: str, parameters: Sequence[Any] | None = None) -> Any: ...
+
+
+def fetch_first_trade_dates(conn: Connection) -> dict[str, date]:
+    """Listing proxy: the earliest session each instrument appears in `bars`."""
+    rows = conn.execute(INSTRUMENTS_SQL).fetchall()
+    return {symbol: date.fromisoformat(stored) for symbol, stored in rows}
+
+
+def fetch_sessions(conn: Connection) -> list[date]:
+    rows = conn.execute(SESSIONS_SQL).fetchall()
+    return [date.fromisoformat(stored) for (stored,) in rows]
 
 
 def _to_decimal(value: Any) -> Decimal:

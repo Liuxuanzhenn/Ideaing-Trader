@@ -12,15 +12,32 @@ SNAPSHOT = "snapshot-test"
 
 
 class FakeConnection:
-    """Stands in for duckdb; records the parameters it was asked for."""
+    """Stands in for duckdb; routes each query to canned rows by table name."""
 
-    def __init__(self, rows: list[tuple]) -> None:
-        self.rows = rows
+    def __init__(
+        self,
+        bars: list[tuple],
+        *,
+        instruments: list[tuple] | None = None,
+        sessions: list[tuple] | None = None,
+    ) -> None:
+        self.bars = bars
+        self.instruments = instruments if instruments is not None else [("SH600000", "2026-11-01")]
+        self.sessions = sessions if sessions is not None else [
+            (f"2026-11-{day:02d}",) for day in range(1, 7)
+        ]
         self.calls: list[tuple[str, list | None]] = []
 
     def execute(self, query: str, parameters=None):
         self.calls.append((query, parameters))
-        rows = self.rows
+        if "count(*)" in query:
+            rows = [(len(self.bars),)]
+        elif "FROM instruments" in query:
+            rows = self.instruments
+        elif "DISTINCT trade_date" in query:
+            rows = self.sessions
+        else:
+            rows = self.bars
 
         class _Result:
             def fetchall(self_inner):
@@ -73,7 +90,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(conn.calls[0][1], ["2026-11-06"])
 
     def test_bar_count_returns_int(self) -> None:
-        self.assertEqual(fetch_session_bar_count(FakeConnection([(5215,)]), DAY), 5215)
+        conn = FakeConnection([row(f"SH60000{index}") for index in range(3)])
+        self.assertEqual(fetch_session_bar_count(conn, DAY), 3)
 
 
 class ReviewServiceTests(unittest.TestCase):
@@ -88,7 +106,7 @@ class ReviewServiceTests(unittest.TestCase):
             row("SH600000", preclose=10.0, close=11.0, high=11.0),
             row("SH600001", preclose=10.0, close=10.6, high=11.0),
             row("SH600002", preclose=10.0, close=10.0, high=10.2),
-            row("SH600003", preclose=10.0, close=11.0, high=11.0, is_st=True),
+            row("SH600003", preclose=10.0, close=10.5, high=10.5, is_st=True),
         ]
         review = build_review(FakeConnection(bars), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
         self.assertEqual(review.limits.sealed_up, 1)
@@ -96,6 +114,13 @@ class ReviewServiceTests(unittest.TestCase):
         self.assertEqual(review.excluded["st"], 1)
         self.assertEqual(review.breadth.total, 3)
         self.assertEqual(review.meta.level, OK)
+
+    def test_st_flag_contradicted_by_a_large_move_is_not_excluded(self) -> None:
+        """A main-board stock moving 10% cannot have been under the 5% ST cap."""
+        bars = [row("SH600003", preclose=10.0, close=10.9, high=10.9, is_st=True)]
+        review = build_review(FakeConnection(bars), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertNotIn("st", review.excluded)
+        self.assertEqual(review.breadth.total, 1)
 
     def test_including_st_when_exclusion_is_off(self) -> None:
         bars = [row("SH600003", preclose=10.0, close=10.5, high=10.5, is_st=True)]
