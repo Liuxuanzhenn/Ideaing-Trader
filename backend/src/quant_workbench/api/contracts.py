@@ -95,6 +95,37 @@ class LadderEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class ScreenRow:
+    """One match. `name`, `industry` and `mcap` stay None: the database has no such columns."""
+
+    code: str
+    name: str | None
+    price: float
+    chg_pct: float
+    turnover_pct: float | None
+    amount: float
+    ladder: int
+    limit_20: int
+    industry: str | None = None
+    mcap: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ScreenResult:
+    meta: DataMeta
+    rows: tuple[ScreenRow, ...]
+    excluded: dict[str, int] = field(default_factory=dict)
+    """Rows removed before filtering, e.g. {"st": 170}."""
+
+
+@dataclass(frozen=True, slots=True)
+class ScreenOptions:
+    meta: DataMeta
+    unavailable: tuple[str, ...] = ()
+    """Fields the database cannot answer; the UI must disable them, not ignore them."""
+
+
+@dataclass(frozen=True, slots=True)
 class SessionPoint:
     """One day of market-wide aggregates, straight from the precomputed table."""
 

@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from .repository import Connection, fetch_latest_snapshot, fetch_quality_checks
 from .repository import resolve_symbol
 from .review_service import build_review
+from .screen_service import options as screen_options, screen
 from .stock_service import build_stock
 from .serialize import to_jsonable
 
@@ -122,6 +123,47 @@ def create_app(
             raise HTTPException(status_code=404, detail={"code": "UNKNOWN_SYMBOL", "message": code}) from error
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": "DATA_ERROR", "message": str(error)}) from error
+        finally:
+            conn.close()
+        return JSONResponse(content=to_jsonable(payload))
+
+    @app.get("/api/screen/options")
+    def screen_option_list() -> JSONResponse:
+        conn = opener()
+        try:
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            payload = screen_options(conn, snapshot_id=snapshot_id, updated_at=updated_at)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": "DATA_ERROR", "message": str(error)}) from error
+        finally:
+            conn.close()
+        return JSONResponse(content=to_jsonable(payload))
+
+    @app.post("/api/screen")
+    async def run_screen(request: Request) -> JSONResponse:
+        body = await request.json()
+        conditions = body.get("conditions", [])
+        if not isinstance(conditions, list):
+            raise HTTPException(status_code=400, detail={"code": "INVALID_BODY", "message": "conditions must be a list"})
+        date_param = body.get("date")
+        trade_date = None
+        if date_param is not None:
+            try:
+                trade_date = date.fromisoformat(date_param)
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail={"code": "INVALID_DATE", "message": str(date_param)}) from error
+        conn = opener()
+        try:
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            payload = screen(
+                conn,
+                conditions,
+                trade_date,
+                snapshot_id=snapshot_id,
+                updated_at=updated_at,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail={"code": "INVALID_SCREEN", "message": str(error)}) from error
         finally:
             conn.close()
         return JSONResponse(content=to_jsonable(payload))
