@@ -95,6 +95,36 @@ class LadderEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class PromotionStep:
+    """How many of yesterday's N-board stocks sealed again today."""
+
+    level: int
+    base: int
+    promoted: int
+
+    @property
+    def rate(self) -> float | None:
+        return self.promoted / self.base if self.base else None
+
+
+@dataclass(frozen=True, slots=True)
+class PrevLimitPerformance:
+    """Yesterday's sealed limit-ups, measured on today's close."""
+
+    samples: int
+    median_pct: float | None
+    up_ratio: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class MarketExtra:
+    amount: float | None
+    """Total turnover in yuan; None when the session has no traded rows."""
+    promotion: tuple[PromotionStep, ...] = ()
+    prev_limit: PrevLimitPerformance | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ScreenRow:
     """One match. `name`, `industry` and `mcap` stay None: the database has no such columns."""
 
@@ -178,6 +208,7 @@ class Review:
     excluded: dict[str, int] = field(default_factory=dict)
     """Why rows were dropped, e.g. {"suspended": 42, "st": 130}."""
     series: SessionSeries = field(default_factory=SessionSeries)
+    market: MarketExtra = field(default_factory=lambda: MarketExtra(amount=None))
 
 
 @dataclass(frozen=True, slots=True)

@@ -94,6 +94,28 @@ WHERE b.trade_date <= ? AND b.trade_date >= ?
 ORDER BY b.code, b.trade_date
 """
 
+SESSION_AMOUNT_SQL = "SELECT coalesce(sum(amount), 0) FROM bars WHERE trade_date = ? AND is_trading"
+
+PREVIOUS_SESSION_SQL = "SELECT max(trade_date) FROM bars WHERE trade_date < ?"
+
+PROMOTION_SQL = """
+WITH prev AS (SELECT symbol, streak FROM limit_streaks WHERE trade_date = ?),
+     cur AS (SELECT symbol, streak FROM limit_streaks WHERE trade_date = ?)
+SELECT prev.streak, count(*), count(cur.symbol)
+FROM prev
+LEFT JOIN cur ON cur.symbol = prev.symbol AND cur.streak = prev.streak + 1
+GROUP BY prev.streak
+ORDER BY prev.streak
+"""
+
+PREV_LIMIT_SQL = """
+WITH prev AS (SELECT symbol FROM limit_streaks WHERE trade_date = ?)
+SELECT (b."close" / b.preclose - 1) * 100
+FROM prev
+JOIN bars b ON b.symbol = prev.symbol AND b.trade_date = ? AND b.is_trading AND b.preclose > 0
+WHERE b."close" IS NOT NULL
+"""
+
 QUALITY_SQL = """
 SELECT check_id, scope, value, threshold, verdict, note
 FROM data_quality
@@ -187,6 +209,27 @@ def fetch_symbol_streaks(conn: Connection, symbol: str, start: date, end: date) 
     if not rows:
         return 0, 0
     return int(rows[0][0]), int(rows[0][1])
+
+
+def fetch_session_amount(conn: Connection, trade_date: date) -> float:
+    rows = conn.execute(SESSION_AMOUNT_SQL, [trade_date.isoformat()]).fetchall()
+    return float(rows[0][0]) if rows and rows[0][0] is not None else 0.0
+
+
+def fetch_previous_session(conn: Connection, trade_date: date) -> date | None:
+    rows = conn.execute(PREVIOUS_SESSION_SQL, [trade_date.isoformat()]).fetchall()
+    stored = rows[0][0] if rows else None
+    return date.fromisoformat(str(stored)) if stored else None
+
+
+def fetch_promotion(conn: Connection, previous: date, current: date) -> list[tuple[int, int, int]]:
+    rows = conn.execute(PROMOTION_SQL, [previous.isoformat(), current.isoformat()]).fetchall()
+    return [(int(row[0]), int(row[1]), int(row[2])) for row in rows]
+
+
+def fetch_prev_limit_changes(conn: Connection, previous: date, current: date) -> list[float]:
+    rows = conn.execute(PREV_LIMIT_SQL, [previous.isoformat(), current.isoformat()]).fetchall()
+    return [float(row[0]) for row in rows if row[0] is not None]
 
 
 def fetch_session_stats(conn: Connection, end: date, limit: int) -> list[tuple[Any, ...]]:

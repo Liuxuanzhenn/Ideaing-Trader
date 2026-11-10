@@ -30,6 +30,10 @@ class FakeConnection:
             ("2026-11-06", 500, 400, 60, 33, 16, 15, 49, 0.6734, 5, 12, 1.5e12),
         ]
         self.index_closes = [("sh.000300", "沪深300", "2026-11-06", 4012.5)]
+        self.amount = 1.5e12
+        self.previous = "2026-11-05"
+        self.promotion = [(1, 18, 3)]
+        self.prev_limit = [5.2, -1.0, 3.0]
         self.sessions = sessions if sessions is not None else [
             (f"2026-11-{day:02d}",) for day in range(1, 7)
         ]
@@ -39,6 +43,14 @@ class FakeConnection:
         self.calls.append((query, parameters))
         if "IS NULL" in query:
             rows = [(self.null_price,)]
+        elif "sum(amount)" in query:
+            rows = [(self.amount,)]
+        elif "max(trade_date) FROM bars WHERE trade_date <" in query:
+            rows = [(self.previous,)]
+        elif "WITH prev AS (SELECT symbol, streak" in query:
+            rows = self.promotion
+        elif "WITH prev AS (SELECT symbol FROM limit_streaks" in query:
+            rows = [(value,) for value in self.prev_limit]
         elif "FROM session_stats" in query:
             # The real query is ORDER BY trade_date DESC LIMIT n
             rows = sorted(self.stats, key=lambda item: item[0], reverse=True)
@@ -254,3 +266,38 @@ class SeriesTests(unittest.TestCase):
         review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
         self.assertEqual(review.series.dates, ())
         self.assertEqual(review.series.sealed_up, ())
+
+
+class MarketExtraTests(unittest.TestCase):
+    def test_amount_promotion_and_previous_limit_are_filled(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.amount = 1.5e12
+        conn.promotion = [(1, 18, 3), (2, 6, 1)]
+        conn.prev_limit = [5.2, -1.0, 3.0, 9.8]
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertAlmostEqual(review.market.amount, 1.5e12)
+        self.assertEqual([step.level for step in review.market.promotion], [1, 2])
+        self.assertAlmostEqual(review.market.promotion[0].rate, 3 / 18)
+        self.assertEqual(review.market.prev_limit.samples, 4)
+        self.assertAlmostEqual(review.market.prev_limit.median_pct, (3.0 + 5.2) / 2)
+        self.assertAlmostEqual(review.market.prev_limit.up_ratio, 0.75)
+
+    def test_no_previous_session_keeps_turnover_but_drops_promotion(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.previous = None
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertAlmostEqual(review.market.amount, conn.amount)
+        self.assertEqual(review.market.promotion, ())
+        self.assertIsNone(review.market.prev_limit)
+
+    def test_empty_previous_limit_sample_is_none_not_zero(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.prev_limit = []
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertIsNone(review.market.prev_limit)
+
+    def test_zero_base_promotion_rate_is_none(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.promotion = [(1, 0, 0)]
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertIsNone(review.market.promotion[0].rate)

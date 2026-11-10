@@ -27,6 +27,14 @@ class FakeConnection:
     def execute(self, query, parameters=None):
         if "IS NULL" in query:
             rows = [(0,)]
+        elif "sum(amount)" in query:
+            rows = [(1.5e12,)]
+        elif "max(trade_date) FROM bars WHERE trade_date <" in query:
+            rows = [("2026-11-05",)]
+        elif "WITH prev AS (SELECT symbol, streak" in query:
+            rows = [(1, 18, 3)]
+        elif "WITH prev AS (SELECT symbol FROM limit_streaks" in query:
+            rows = [(5.2,)]
         elif "FROM session_stats" in query:
             rows = [("2026-11-06", 500, 400, 60, 33, 16, 15, 49, 0.6734, 5, 12, 1.5e12)]
         elif "FROM index_bars" in query:

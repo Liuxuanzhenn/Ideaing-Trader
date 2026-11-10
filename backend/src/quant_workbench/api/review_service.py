@@ -27,6 +27,9 @@ from .contracts import (
     IndexSeries,
     LadderEntry,
     LimitStats,
+    MarketExtra,
+    PrevLimitPerformance,
+    PromotionStep,
     Review,
     SessionPoint,
     SessionSeries,
@@ -37,6 +40,10 @@ from .repository import (
     fetch_index_closes,
     fetch_index_quotes,
     fetch_ladder,
+    fetch_prev_limit_changes,
+    fetch_previous_session,
+    fetch_promotion,
+    fetch_session_amount,
     fetch_null_price_count,
     fetch_session_bars,
     fetch_session_stats,
@@ -112,6 +119,7 @@ def build_review(
         indices=indices,
         ladder=ladder,
         series=_series(conn, trade_date),
+        market=_market(conn, trade_date),
     )
 
 
@@ -202,4 +210,35 @@ def _index_series(conn: Connection, points: list[SessionPoint]) -> tuple[IndexSe
             closes=tuple(closes.get(point.trade_date.isoformat()) for point in points),
         )
         for code, (name, closes) in sorted(by_code.items())
+    )
+
+
+def _market(conn: Connection, trade_date: date) -> MarketExtra:
+    """Turnover, promotion rates and how yesterday's limit-ups fared today."""
+    previous = fetch_previous_session(conn, trade_date)
+    if previous is None:
+        return MarketExtra(amount=fetch_session_amount(conn, trade_date))
+    steps = tuple(
+        PromotionStep(level=level, base=base, promoted=promoted)
+        for level, base, promoted in fetch_promotion(conn, previous, trade_date)
+    )
+    changes = fetch_prev_limit_changes(conn, previous, trade_date)
+    return MarketExtra(
+        amount=fetch_session_amount(conn, trade_date),
+        promotion=steps,
+        prev_limit=_prev_limit(changes),
+    )
+
+
+def _prev_limit(changes: list[float]) -> PrevLimitPerformance | None:
+    """Median and share that closed green; None when no sample survived."""
+    if not changes:
+        return None
+    ordered = sorted(changes)
+    middle = len(ordered) // 2
+    median = ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+    return PrevLimitPerformance(
+        samples=len(ordered),
+        median_pct=median,
+        up_ratio=sum(1 for value in ordered if value > 0) / len(ordered),
     )
