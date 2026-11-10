@@ -109,18 +109,17 @@ def create_app(
                 raise HTTPException(status_code=400, detail={"code": "INVALID_DATE", "message": date_param}) from error
         conn = opener()
         try:
-            try:
-                symbol = resolve_symbol(conn, code)
-            except KeyError as error:
-                raise HTTPException(status_code=404, detail={"code": "UNKNOWN_SYMBOL", "message": code}) from error
             snapshot_id, updated_at = fetch_latest_snapshot(conn)
             payload = build_stock(
                 conn,
-                symbol,
+                resolve_symbol(conn, code),
                 trade_date,
                 snapshot_id=snapshot_id,
                 updated_at=updated_at,
             )
+        except KeyError as error:
+            # Unknown code and a code with no stored bars are the same answer to the caller.
+            raise HTTPException(status_code=404, detail={"code": "UNKNOWN_SYMBOL", "message": code}) from error
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": "DATA_ERROR", "message": str(error)}) from error
         finally:

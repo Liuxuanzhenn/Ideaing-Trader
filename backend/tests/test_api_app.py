@@ -69,6 +69,13 @@ class HealthTests(unittest.TestCase):
 
 
 class ReviewEndpointTests(unittest.TestCase):
+    def test_unknown_symbol_returns_404_not_500(self) -> None:
+        # No stored bars for the symbol: the service raises KeyError, which must surface as 404.
+        client = TestClient(create_app(lambda: FakeConnection([]), api_token="t"))
+        response = client.get("/api/stocks/SH999999?date=2026-11-06", headers={"authorization": "Bearer t"})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"]["code"], "UNKNOWN_SYMBOL")
+
     def test_returns_contract_shape(self) -> None:
         response = client_for(FakeConnection([bar_row()])).get(f"/api/review?date={DAY}")
         self.assertEqual(response.status_code, 200)
