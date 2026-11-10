@@ -115,3 +115,22 @@ class ReviewServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NullVolumeTests(unittest.TestCase):
+    def test_suspended_row_with_null_volume_becomes_zero(self) -> None:
+        nullable = list(row("SH688121", trading=False))
+        nullable[7] = None  # volume
+        nullable[8] = None  # amount
+        bars = fetch_session_bars(FakeConnection([tuple(nullable)]), DAY)
+        self.assertEqual(bars[0].volume, Decimal("0"))
+        self.assertEqual(bars[0].amount, Decimal("0"))
+        self.assertFalse(bars[0].trading)
+
+    def test_traded_row_with_null_volume_is_an_error(self) -> None:
+        broken = list(row("SH600000"))
+        broken[7] = None
+        with self.assertRaises(ValueError) as caught:
+            fetch_session_bars(FakeConnection([tuple(broken)]), DAY)
+        self.assertIn("SH600000", str(caught.exception))
+        self.assertIn("volume", str(caught.exception))

@@ -33,7 +33,21 @@ class Connection(Protocol):
 
 def _to_decimal(value: Any) -> Decimal:
     """Floats carry binary noise, so go through str before it reaches the model."""
+    if value is None:
+        raise ValueError("cannot convert NULL to a decimal")
     return Decimal(str(value))
+
+
+def _traded_value(value: Any, symbol: str, field: str) -> Decimal:
+    """A traded session must carry the field; NULL here is a data fault, not a zero."""
+    if value is None:
+        raise ValueError(f"{symbol} is marked as trading but {field} is NULL")
+    return _to_decimal(value)
+
+
+def _idle_value(value: Any) -> Decimal:
+    """Suspended sessions store NULL for volume and amount; the model wants zero."""
+    return Decimal("0") if value is None else _to_decimal(value)
 
 
 def fetch_session_bars(conn: Connection, trade_date: date) -> list[DailyBar]:
@@ -61,6 +75,9 @@ def _to_bar(row: Sequence[Any]) -> DailyBar:
         is_st,
         is_trading,
     ) = row
+    trading = bool(is_trading)
+    volume_value = _traded_value(volume, symbol, "volume") if trading else _idle_value(volume)
+    amount_value = _traded_value(amount, symbol, "amount") if trading else _idle_value(amount)
     return DailyBar(
         symbol=symbol,
         trade_date=date.fromisoformat(stored_date),
@@ -68,10 +85,10 @@ def _to_bar(row: Sequence[Any]) -> DailyBar:
         high=_to_decimal(high),
         low=_to_decimal(low),
         close=_to_decimal(close),
-        volume=_to_decimal(volume),
-        amount=_to_decimal(amount),
+        volume=volume_value,
+        amount=amount_value,
         preclose=_to_decimal(preclose) if preclose is not None else None,
         turn=_to_decimal(turn) if turn is not None else None,
-        trading=bool(is_trading),
+        trading=trading,
         is_st=bool(is_st),
     )
