@@ -70,6 +70,16 @@ export interface LiveReview {
   market?: LiveMarket;
 }
 
+/** 后端错误码到用户可读原因；未登记的错误码回落到后端原文。 */
+const ERROR_TEXT: Record<string, string> = {
+  INVALID_DATE: '日期格式不正确',
+  DATA_ERROR: '数据读取失败',
+  UNKNOWN_SYMBOL: '未收录的代码',
+  INVALID_BACKTEST: '回测参数不被接受',
+  INVALID_SCREEN: '筛选条件不被接受',
+  UNKNOWN_LIST: '未知的清单类型',
+};
+
 /**
  * 唯一的请求出口。后端错误体有两种形状（`{message}` 和 FastAPI 的 `{detail:{message}}`），
  * 统一在这里取消息，页面只关心一句话原因。
@@ -83,7 +93,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       detail?: { code?: string; message?: string };
     };
     const detail = body.detail ?? body;
-    throw new Error(detail.message ?? detail.code ?? `HTTP ${response.status}`);
+    const known = detail.code ? ERROR_TEXT[detail.code] : undefined;
+    throw new Error(known ?? detail.message ?? detail.code ?? `HTTP ${response.status}`);
   }
   return (await response.json()) as T;
 }
