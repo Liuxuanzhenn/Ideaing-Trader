@@ -1,0 +1,117 @@
+import unittest
+from datetime import date, datetime, timezone
+from decimal import Decimal
+
+from quant_workbench.api import EMPTY, OK
+from quant_workbench.api.repository import fetch_session_bar_count, fetch_session_bars
+from quant_workbench.api.review_service import build_review
+
+DAY = date(2026, 11, 6)
+UPDATED = datetime(2026, 11, 6, 15, 32, tzinfo=timezone.utc)
+SNAPSHOT = "snapshot-test"
+
+
+class FakeConnection:
+    """Stands in for duckdb; records the parameters it was asked for."""
+
+    def __init__(self, rows: list[tuple]) -> None:
+        self.rows = rows
+        self.calls: list[tuple[str, list | None]] = []
+
+    def execute(self, query: str, parameters=None):
+        self.calls.append((query, parameters))
+        rows = self.rows
+
+        class _Result:
+            def fetchall(self_inner):
+                return rows
+
+        return _Result()
+
+
+def row(
+    symbol: str,
+    *,
+    close: float = 11.0,
+    preclose: float = 10.0,
+    trading: bool = True,
+    is_st: bool = False,
+    open_price: float = 10.0,
+    high: float = 11.0,
+    low: float = 9.9,
+    volume: float = 1000.0,
+) -> tuple:
+    return (
+        symbol,
+        "2026-11-06",
+        open_price,
+        high,
+        low,
+        close,
+        preclose,
+        volume,
+        1000.0,
+        1.5,
+        1 if is_st else 0,
+        trading,
+    )
+
+
+class RepositoryTests(unittest.TestCase):
+    def test_converts_row_to_canonical_bar(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        bars = fetch_session_bars(conn, DAY)
+        self.assertEqual(len(bars), 1)
+        self.assertEqual(bars[0].symbol, "SH600000")
+        self.assertEqual(bars[0].trade_date, DAY)
+        self.assertEqual(bars[0].close, Decimal("11"))
+        self.assertFalse(bars[0].is_st)
+
+    def test_queries_with_iso_date_string(self) -> None:
+        conn = FakeConnection([])
+        fetch_session_bars(conn, DAY)
+        self.assertEqual(conn.calls[0][1], ["2026-11-06"])
+
+    def test_bar_count_returns_int(self) -> None:
+        self.assertEqual(fetch_session_bar_count(FakeConnection([(5215,)]), DAY), 5215)
+
+
+class ReviewServiceTests(unittest.TestCase):
+    def test_empty_session_is_reported_as_not_a_trading_day(self) -> None:
+        review = build_review(FakeConnection([]), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertFalse(review.is_trading_day)
+        self.assertEqual(review.meta.level, EMPTY)
+        self.assertIsNone(review.limits.seal_rate)
+
+    def test_counts_limit_ups_and_excludes_st(self) -> None:
+        bars = [
+            row("SH600000", preclose=10.0, close=11.0, high=11.0),
+            row("SH600001", preclose=10.0, close=10.6, high=11.0),
+            row("SH600002", preclose=10.0, close=10.0, high=10.2),
+            row("SH600003", preclose=10.0, close=11.0, high=11.0, is_st=True),
+        ]
+        review = build_review(FakeConnection(bars), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(review.limits.sealed_up, 1)
+        self.assertEqual(review.limits.broken_up, 1)
+        self.assertEqual(review.excluded["st"], 1)
+        self.assertEqual(review.breadth.total, 3)
+        self.assertEqual(review.meta.level, OK)
+
+    def test_including_st_when_exclusion_is_off(self) -> None:
+        bars = [row("SH600003", preclose=10.0, close=10.5, high=10.5, is_st=True)]
+        review = build_review(FakeConnection(bars), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED, exclude_st=False)
+        self.assertEqual(review.limits.sealed_up, 1)
+        self.assertNotIn("st", review.excluded)
+
+    def test_suspended_rows_are_reported_not_counted(self) -> None:
+        bars = [
+            row("SH600000", preclose=10.0, close=10.2, high=10.3),
+            row("SH600001", preclose=10.0, close=10.0, high=10.0, trading=False, volume=0.0),
+        ]
+        review = build_review(FakeConnection(bars), DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(review.excluded["suspended"], 1)
+        self.assertEqual(review.breadth.total, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

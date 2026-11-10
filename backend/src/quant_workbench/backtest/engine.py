@@ -19,7 +19,7 @@ from typing import Mapping, Sequence
 from quant_workbench.data import DailyBar
 from quant_workbench.market.calendar import TradingCalendar
 
-from .execution import BUY, SELL, FeeSchedule, Fill, Rejection, fill_at_open
+from .execution import BUY, SELL, FeeSchedule, Fill, Rejection, fill_at_open, open_fill_price
 
 LOT = Decimal("100")
 SHARES = Decimal("1")
@@ -92,6 +92,10 @@ def run_backtest(
     index: dict[str, dict[date, DailyBar]] = {
         symbol: {bar.trade_date: bar for bar in series} for symbol, series in bars.items()
     }
+    known_closes: dict[str, list[tuple[date, Decimal]]] = {
+        symbol: sorted((bar.trade_date, bar.close) for bar in series if bar.trading)
+        for symbol, series in bars.items()
+    }
     sessions = [day for day in calendar.sessions if start <= day <= end]
     cash = capital
     positions: list[_Position] = []
@@ -140,10 +144,9 @@ def run_backtest(
                 skips.append(Skip(session, symbol, "no_bar"))
                 continue
             budget = cash / Decimal(max_positions - len(positions))
-            quantity = (budget / (bar.open * (1 + fees.slippage_rate)) / LOT).to_integral_value(
-                rounding=ROUND_DOWN
-            ) * LOT
-            if quantity < LOT:
+            price = open_fill_price(bar, BUY, fees)
+            quantity = (budget / price / LOT).to_integral_value(rounding=ROUND_DOWN) * LOT
+            if quantity < LOT or quantity * price > cash:
                 skips.append(Skip(session, symbol, "budget_too_small"))
                 continue
             outcome = fill_at_open(bar, BUY, quantity, fees)
@@ -151,6 +154,8 @@ def run_backtest(
                 skips.append(Skip(session, symbol, outcome.reason))
                 continue
             cash -= outcome.notional + outcome.fee
+            if cash < 0:
+                raise ValueError(f"cash went negative buying {symbol} on {session}")
             positions.append(
                 _Position(
                     symbol=symbol,
@@ -163,7 +168,7 @@ def run_backtest(
             )
 
         pending_entries = entries.get(session, ())
-        equity.append((session, cash + _mark_to_market(positions, index, session)))
+        equity.append((session, cash + _mark_to_market(positions, known_closes, session)))
 
     return BacktestResult(
         starting_capital=capital,
@@ -180,14 +185,28 @@ def _exit_session(calendar: TradingCalendar, entry: date, holding_days: int) -> 
 
 def _mark_to_market(
     positions: Sequence[_Position],
-    index: Mapping[str, Mapping[date, DailyBar]],
+    known_closes: Mapping[str, Sequence[tuple[date, Decimal]]],
     session: date,
 ) -> Decimal:
+    """Value holdings at the last close known on or before `session`.
+
+    A suspended stock keeps its previous close rather than dropping out of the
+    portfolio, which is what a holder would actually see.
+    """
     value = Decimal("0")
     for position in positions:
-        bar = index.get(position.symbol, {}).get(session)
-        if bar is None:
-            value += position.entry_price * position.quantity
-        else:
-            value += bar.close * position.quantity
+        value += _last_close(known_closes.get(position.symbol, ()), session) * position.quantity
     return value
+
+
+def _last_close(series: Sequence[tuple[date, Decimal]], session: date) -> Decimal:
+    if not series:
+        raise ValueError(f"no price history to value a position on {session}")
+    latest: tuple[date, Decimal] | None = None
+    for day, close in series:
+        if day > session:
+            break
+        latest = (day, close)
+    if latest is None:
+        raise ValueError(f"no close on or before {session}")
+    return latest[1]

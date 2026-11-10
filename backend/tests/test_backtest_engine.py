@@ -137,3 +137,48 @@ class GuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ValuationTests(unittest.TestCase):
+    def test_suspended_holding_keeps_its_last_close(self) -> None:
+        bars = {
+            "600000": [
+                bar("600000", D[1], preclose="10.00", open="10.00", high="10.00", low="10.00", close="10.00"),
+                suspended("600000", D[2], "10.00"),
+                suspended("600000", D[3], "10.00"),
+            ]
+        }
+        result = run_backtest(
+            bars=bars,
+            entries={D[0]: ["600000"]},
+            calendar=CAL,
+            fees=FREE,
+            start=D[0],
+            end=D[3],
+            capital=Decimal("10000"),
+            max_positions=1,
+            holding_days=9,
+        )
+        self.assertEqual(result.equity[-1][1], Decimal("10000"))
+
+    def test_slippage_cannot_push_cash_negative(self) -> None:
+        fees = FeeSchedule(
+            commission_rate=Decimal("0.0003"),
+            min_commission=Decimal("5"),
+            stamp_duty_rate=Decimal("0"),
+            slippage_rate=Decimal("0.01"),
+        )
+        bars = {"600000": flat("600000", {D[1]: "10.00", D[2]: "10.00"})}
+        result = run_backtest(
+            bars=bars,
+            entries={D[0]: ["600000"]},
+            calendar=CAL,
+            fees=fees,
+            start=D[0],
+            end=D[2],
+            capital=Decimal("5000"),
+            max_positions=1,
+            holding_days=5,
+        )
+        for _, value in result.equity:
+            self.assertGreaterEqual(value, Decimal("0"))

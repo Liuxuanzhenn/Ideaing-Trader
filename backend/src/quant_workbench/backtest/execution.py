@@ -61,6 +61,19 @@ class Rejection:
     detail: str
 
 
+def open_fill_price(bar: DailyBar, side: str, fees: FeeSchedule) -> Decimal:
+    """Price a market order would fill at, before any limit or suspension check.
+
+    Shared with sizing so a strategy never budgets against one price and fills at
+    another.
+    """
+    if side not in (BUY, SELL):
+        raise ValueError(f"side must be {BUY} or {SELL}, got {side!r}")
+    slip = bar.open * fees.slippage_rate
+    price = (bar.open + slip) if side == BUY else (bar.open - slip)
+    return price.quantize(_CENT, rounding=ROUND_HALF_UP)
+
+
 def fill_at_open(
     bar: DailyBar,
     side: str,
@@ -93,9 +106,7 @@ def fill_at_open(
         if side == SELL and bar.open <= lower:
             return Rejection(LIMIT_DOWN_OPEN, f"{bar.symbol} opened at the lower limit {lower}")
 
-    slip = bar.open * fees.slippage_rate
-    price = (bar.open + slip) if side == BUY else (bar.open - slip)
-    price = price.quantize(_CENT, rounding=ROUND_HALF_UP)
+    price = open_fill_price(bar, side, fees)
     if price <= 0:
         return Rejection(NO_REFERENCE_PRICE, f"slippage drives {bar.symbol} price to {price}")
 
