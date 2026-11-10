@@ -280,6 +280,182 @@ export async function runLiveScreen(
   } as unknown as import('./types').ScreenResult;
 }
 
+interface LiveBacktestReport {
+  meta: LiveMeta;
+  params: {
+    strategy: string;
+    strategy_label: string;
+    start: string;
+    end: string;
+    capital: number;
+    max_positions: number;
+    holding_days: number;
+  };
+  starting_capital: number;
+  ending_equity: number;
+  equity: [string, number][];
+  trades: {
+    symbol: string;
+    entry_date: string;
+    exit_date: string;
+    quantity: number;
+    entry_price: number;
+    exit_price: number;
+    fees: number;
+    pnl: number;
+  }[];
+  skips: Record<string, number>;
+  total_return: number | null;
+  annual_return: number | null;
+  max_drawdown: number | null;
+  win_rate: number | null;
+  fees: number;
+  fee_schedule: Record<string, number>;
+  note: string;
+}
+
+export interface LiveBacktestOptions {
+  strategies: { id: string; label: string }[];
+  latest_session: string | null;
+}
+
+export async function fetchLiveBacktestOptions(): Promise<import('./types').BacktestOptions> {
+  const payload = await getJson<LiveBacktestOptions>('/api/backtests/options');
+  const latest = payload.latest_session ?? '';
+  return {
+    meta: liveMeta({
+      ...(payload as unknown as { meta?: LiveMeta }).meta,
+    } as LiveMeta),
+    strategies: payload.strategies.map((item) => ({
+      id: item.id as import('./types').BtStrategy['id'],
+      label: item.label,
+      version: 'v1',
+      description: '首板次日开盘买入，持有固定交易日数',
+    })),
+    pools: [{ id: 'all', label: '全市场', count: null }],
+    assumptions: [
+      '信号在收盘确认，成交在次日开盘；开盘涨停买不到、停牌不可成交',
+      '佣金万三（最低 5 元）、印花税千一（仅卖出）、滑点万二',
+      '结果不落库：刷新页面后需要重新运行',
+    ],
+    defaults: {
+      strategy_id: 'first_board',
+      pool: 'all',
+      from: latest,
+      to: latest,
+      capital: 1000000,
+      max_pos: 10,
+      fee_rate: 0.0003,
+      stamp_rate: 0.0001,
+      slip_rate: 0.0002,
+    },
+  } as unknown as import('./types').BacktestOptions;
+}
+
+/**
+ * Runs synchronously and returns the finished report; v1 has no task queue.
+ * Reports are kept in memory so the result page can be navigated by id, and the
+ * assumptions block says plainly that they do not survive a reload.
+ */
+const backtestRuns = new Map<string, LiveBacktestReport>();
+let backtestSeq = 0;
+
+export function getBacktestRun(): { id: string; report: LiveBacktestReport } | null {
+  const last = [...backtestRuns.entries()].pop();
+  return last ? { id: last[0], report: last[1] } : null;
+}
+
+export async function submitLiveBacktest(form: import('./types').BacktestForm): Promise<import('./types').TaskItem> {
+  const report = await postJson<LiveBacktestReport>('/api/backtests', {
+    strategy: form.strategy_id,
+    start: form.from,
+    end: form.to,
+    capital: form.capital,
+    max_positions: form.max_pos,
+    holding_days: 5,
+  });
+  backtestSeq += 1;
+  const id = `bt-${Date.now()}-${backtestSeq}`;
+  backtestRuns.set(id, report);
+  return {
+    id,
+    type: 'backtest',
+    status: 'success',
+    progress_pct: 100,
+    submitted: report.meta.updated_at,
+    finished: report.meta.updated_at,
+    server: 'autodl',
+    params: `${report.params.strategy_label} · ${report.params.start}..${report.params.end}`,
+    cancelable: false,
+    result_ready: true,
+  };
+}
+
+function toBacktestResult(report: LiveBacktestReport): import('./types').BacktestResult {
+  const base = report.equity.length ? report.equity[0][1] : report.starting_capital;
+  const equity = report.equity.map(([, value]) => (base > 0 ? (value / base) * 100 : 0));
+  let peak = -Infinity;
+  const drawdown = equity.map((value) => {
+    peak = Math.max(peak, value);
+    return peak > 0 ? -((peak - value) / peak) * 100 : 0;
+  });
+  const pctOf = (value: number | null) => (value === null ? null : value * 100);
+  return {
+    meta: liveMeta(report.meta),
+    task_id: report.params.strategy,
+    metrics: {
+      total_pct: pctOf(report.total_return),
+      annual_pct: pctOf(report.annual_return),
+      // No benchmark series yet; 0 would read as "the index returned nothing".
+      bench_pct: null,
+      excess_pct: null,
+      max_dd_pct: pctOf(report.max_drawdown),
+      trades: report.trades.length,
+      win_rate: report.win_rate,
+      fees: report.fees,
+    },
+    equity,
+    benchmark: [],
+    drawdown,
+    labels: report.equity.map(([day]) => day),
+    yearly: [],
+    trades: report.trades.map((trade) => ({
+      open: trade.entry_date,
+      close: trade.exit_date,
+      code: trade.symbol,
+      name: trade.symbol,
+      qty: trade.quantity,
+      price: trade.entry_price,
+      pnl: trade.pnl,
+      fee: trade.fees,
+    })),
+    run_meta: {
+      snapshot: report.meta.snapshot_id,
+      strategy: report.params.strategy_label,
+      params_hash: `${report.params.max_positions}仓/${report.params.holding_days}日`,
+      seed: 0,
+      range: `${report.params.start}..${report.params.end}`,
+      benchmark: '未计算',
+      pool: '全市场',
+      timing: '信号收盘确认，次日开盘成交',
+    },
+    assumptions: [
+      '信号在收盘确认，成交在次日开盘；开盘涨停买不到、停牌不可成交',
+      `佣金 ${report.fee_schedule.commission_rate ?? 0} · 印花税 ${report.fee_schedule.stamp_duty_rate ?? 0} · 滑点 ${report.fee_schedule.slippage_rate ?? 0}`,
+      report.note || '结果未落库，刷新页面后需重新运行',
+      ...Object.entries(report.skips).map(([reason, count]) => `跳过 ${reason}：${count} 次`),
+    ],
+  } as unknown as import('./types').BacktestResult;
+}
+
+export async function fetchLiveBacktestResult(taskId: string): Promise<import('./types').BacktestResult> {
+  const report = backtestRuns.get(taskId);
+  if (!report) {
+    throw new Error('该回测结果只存在于当前会话内存中，请重新运行');
+  }
+  return toBacktestResult(report);
+}
+
 /** Blocks the backend cannot serve yet; the page must say so instead of showing zeros. */
 export function liveGaps(review: LiveReview): string[] {
   const gaps: string[] = [];

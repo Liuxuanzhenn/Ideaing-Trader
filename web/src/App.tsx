@@ -6,6 +6,9 @@ import {
   fetchLiveStatus,
   fetchLiveStock,
   runLiveScreen,
+  submitLiveBacktest,
+  fetchLiveBacktestOptions,
+  fetchLiveBacktestResult,
   toPageReview,
   type LiveReview,
 } from './api/live';
@@ -58,6 +61,9 @@ export default function App() {
       getStock: fetchLiveStock,
       getScreenOptions: fetchLiveScreenOptions,
       runScreen: runLiveScreen,
+      getBacktestOptions: fetchLiveBacktestOptions,
+      submitBacktest: submitLiveBacktest,
+      getBacktestResult: fetchLiveBacktestResult,
       getReview: async (date: string) => {
         const live: LiveReview = await fetchLiveReview(date);
         return toPageReview(live);

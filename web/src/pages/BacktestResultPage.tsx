@@ -82,22 +82,30 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
       <div className="metric-row section">
         <div className="card metric-card">
           <div className="k">累计收益</div>
-          <div className={`v ${toneOf(metrics.total_pct)}`}>{pct(metrics.total_pct)}</div>
+          <div className={`v ${metrics.total_pct === null ? 'flat' : toneOf(metrics.total_pct)}`}>
+            {metrics.total_pct === null ? '—' : pct(metrics.total_pct)}
+          </div>
           <div className="s">区间 {data.run_meta.range}</div>
         </div>
         <div className="card metric-card">
           <div className="k">年化收益</div>
-          <div className={`v ${toneOf(metrics.annual_pct)}`}>{pct(metrics.annual_pct)}</div>
-          <div className="s">基准 {pct(metrics.bench_pct)}</div>
+          <div className={`v ${metrics.annual_pct === null ? 'flat' : toneOf(metrics.annual_pct)}`}>
+            {metrics.annual_pct === null ? '—' : pct(metrics.annual_pct)}
+          </div>
+          <div className="s">基准 {metrics.bench_pct === null ? '—' : pct(metrics.bench_pct)}</div>
         </div>
         <div className="card metric-card">
           <div className="k">最大回撤</div>
-          <div className="v down">{metrics.max_dd_pct.toFixed(1)}%</div>
+          <div className="v down">
+            {metrics.max_dd_pct === null ? '—' : `${metrics.max_dd_pct.toFixed(1)}%`}
+          </div>
           <div className="s">净值峰值到谷底</div>
         </div>
         <div className="card metric-card">
           <div className="k">超额收益</div>
-          <div className={`v ${toneOf(metrics.excess_pct)}`}>{pct(metrics.excess_pct)}</div>
+          <div className={`v ${metrics.excess_pct === null ? 'flat' : toneOf(metrics.excess_pct)}`}>
+            {metrics.excess_pct === null ? '—' : pct(metrics.excess_pct)}
+          </div>
           <div className="s">策略 − 沪深 300</div>
         </div>
         <div className="card metric-card">
@@ -139,7 +147,9 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
       <div className="card section">
         <div className="card-head">
           <span className="card-title">回撤</span>
-          <span className="card-sub">最大回撤 {metrics.max_dd_pct.toFixed(1)}%</span>
+          <span className="card-sub">
+            最大回撤 {metrics.max_dd_pct === null ? '—' : `${metrics.max_dd_pct.toFixed(1)}%`}
+          </span>
         </div>
         <AreaChart values={data.drawdown} />
       </div>

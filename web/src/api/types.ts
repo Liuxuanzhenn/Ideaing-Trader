@@ -344,11 +344,12 @@ export interface BacktestForm {
 }
 
 export interface BacktestMetrics {
-  total_pct: number;
-  annual_pct: number;
-  bench_pct: number;
-  excess_pct: number;
-  max_dd_pct: number;
+  total_pct: number | null;
+  annual_pct: number | null;
+  /** 基准尚未计算时为 null，不用 0 冒充 */
+  bench_pct: number | null;
+  excess_pct: number | null;
+  max_dd_pct: number | null;
   trades: number;
   /** 0–1；无样本时 null */
   win_rate: number | null;
