@@ -130,6 +130,12 @@ WHERE symbol IN ({placeholders}) AND trade_date BETWEEN ? AND ?
 ORDER BY symbol, trade_date
 """
 
+BENCHMARK_SQL = """
+SELECT trade_date, "close" FROM index_bars
+WHERE code = ? AND trade_date BETWEEN ? AND ?
+ORDER BY trade_date
+"""
+
 QUALITY_SQL = """
 SELECT check_id, scope, value, threshold, verdict, note
 FROM data_quality
@@ -271,6 +277,11 @@ def fetch_bars_for_symbols(
             if bar is not None:
                 out.setdefault(bar.symbol, []).append(bar)
     return out
+
+
+def fetch_index_close_map(conn: Connection, code: str, start: date, end: date) -> dict[str, float]:
+    rows = conn.execute(BENCHMARK_SQL, [code, start.isoformat(), end.isoformat()]).fetchall()
+    return {str(stored): float(close) for stored, close in rows if close is not None}
 
 
 def fetch_session_stats(conn: Connection, end: date, limit: int) -> list[tuple[Any, ...]]:

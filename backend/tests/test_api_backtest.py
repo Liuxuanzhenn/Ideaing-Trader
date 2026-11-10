@@ -19,6 +19,7 @@ class FakeConnection:
         self.sessions = sessions
         self.signals = signals
         self.bars = bars
+        self.index_closes: dict[str, float] = {}
         self.calls = []
 
     def execute(self, query, parameters=None):
@@ -30,6 +31,8 @@ class FakeConnection:
             rows = [(day,) for day in self.sessions]
         elif "max(trade_date) FROM bars" in query:
             rows = [(self.sessions[-1],)]
+        elif "FROM index_bars" in query:
+            rows = sorted(self.index_closes.items())
         elif "FROM bars" in query:
             wanted = set(params[:-2])
             rows = [row for row in self.bars if row[0] in wanted and params[-2] <= row[1] <= params[-1]]
@@ -129,3 +132,49 @@ class BacktestServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BenchmarkTests(unittest.TestCase):
+    def _conn(self, closes):
+        days = sessions(30)
+        conn = FakeConnection(
+            sessions=days,
+            signals={"2026-10-06": ["SH600000"]},
+            bars=[bar_row("SH600000", day, 10.0 + index * 0.1) for index, day in enumerate(days)],
+        )
+        conn.index_closes = closes
+        return conn
+
+    def test_benchmark_is_rebased_to_one_hundred(self):
+        closes = {"2026-10-05": 4000.0, "2026-10-20": 4400.0}
+        report = run(
+            self._conn(closes),
+            strategy="first_board",
+            start=date(2026, 10, 5),
+            end=date(2026, 10, 20),
+            capital=Decimal("100000"),
+            max_positions=2,
+            holding_days=2,
+            snapshot_id=SNAPSHOT,
+            updated_at=UPDATED,
+        )
+        self.assertTrue(report.benchmark)
+        self.assertAlmostEqual(report.benchmark[0], 100.0)
+        self.assertAlmostEqual(report.benchmark[-1], 110.0)
+        self.assertAlmostEqual(report.benchmark_return or 0, 0.1)
+        self.assertEqual(len(report.benchmark), len(report.equity))
+
+    def test_missing_index_yields_empty_benchmark_not_flat_zero(self):
+        report = run(
+            self._conn({}),
+            strategy="first_board",
+            start=date(2026, 10, 5),
+            end=date(2026, 10, 20),
+            capital=Decimal("100000"),
+            max_positions=2,
+            holding_days=2,
+            snapshot_id=SNAPSHOT,
+            updated_at=UPDATED,
+        )
+        self.assertEqual(report.benchmark, ())
+        self.assertIsNone(report.benchmark_return)

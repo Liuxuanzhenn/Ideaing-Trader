@@ -30,6 +30,7 @@ from .contracts import (
 from .repository import (
     Connection,
     fetch_bars_for_symbols,
+    fetch_index_close_map,
     fetch_latest_session,
     fetch_sessions,
     fetch_streak_signals,
@@ -49,6 +50,8 @@ DEFAULT_CAPITAL = Decimal("1000000")
 DEFAULT_MAX_POSITIONS = 10
 DEFAULT_HOLDING_DAYS = 5
 WARMUP_DAYS = 10
+BENCHMARK_CODE = "sh.000300"
+BENCHMARK_LABEL = "沪深300"
 
 
 def run(
@@ -103,6 +106,8 @@ def run(
             starting_capital=float(capital),
             ending_equity=float(capital),
             equity=(),
+            benchmark=(),
+            benchmark_return=None,
             trades=(),
             skips={},
             total_return=None,
@@ -126,7 +131,12 @@ def run(
         max_positions=max_positions,
         holding_days=holding_days,
     )
-    metrics = compute_metrics(result.equity, result.trades)
+    benchmark = _benchmark(conn, [day for day, _ in result.equity], begin, finish)
+    metrics = compute_metrics(
+        result.equity,
+        result.trades,
+        benchmark=[Decimal(str(value)) for value in benchmark] if benchmark else None,
+    )
     skips: dict[str, int] = {}
     for skip in result.skips:
         skips[skip.reason] = skips.get(skip.reason, 0) + 1
@@ -136,6 +146,7 @@ def run(
         starting_capital=float(capital),
         ending_equity=float(result.ending_equity),
         equity=tuple((day, float(value)) for day, value in result.equity),
+        benchmark=benchmark,
         trades=tuple(
             BacktestTrade(
                 symbol=trade.symbol,
@@ -154,6 +165,7 @@ def run(
         annual_return=_float(metrics.annual_return),
         max_drawdown=_float(metrics.max_drawdown),
         win_rate=_float(metrics.win_rate),
+        benchmark_return=_float(metrics.benchmark_return),
         fees=float(metrics.fees),
         fee_schedule={
             "commission_rate": float(FEES.commission_rate),
@@ -163,6 +175,34 @@ def run(
         },
         note="" if result.trades or result.skips else "区间内有信号但没有成交",
     )
+
+
+def _benchmark(
+    conn: Connection, equity_dates: list[date], begin: date, finish: date
+) -> tuple[float, ...]:
+    """Benchmark rebased to 100 on the equity dates.
+
+    A session the index has no bar for is carried from the previous close: unlike a
+    sparkline, a benchmark line must stay the same length as the equity curve, and
+    weekends are simply absent from `equity_dates` anyway.
+    """
+    if not equity_dates:
+        return ()
+    closes = fetch_index_close_map(conn, BENCHMARK_CODE, begin, finish)
+    if not closes:
+        return ()
+    ordered = sorted(closes)
+    base = closes[ordered[0]]
+    if base <= 0:
+        return ()
+    values: list[float] = []
+    previous = ordered[0]
+    for day in equity_dates:
+        stored = day.isoformat()
+        if stored in closes:
+            previous = stored
+        values.append(closes[previous] / base * 100)
+    return tuple(values)
 
 
 def _default_start(sessions: list[date], finish: date) -> date:

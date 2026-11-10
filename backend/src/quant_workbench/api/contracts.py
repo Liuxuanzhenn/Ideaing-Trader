@@ -156,6 +156,9 @@ class BacktestReport:
     starting_capital: float
     ending_equity: float
     equity: tuple[tuple[date, float], ...]
+    benchmark: tuple[float, ...]
+    """Benchmark rebased to 100 and aligned with `equity`; empty when no index bar."""
+    benchmark_return: float | None
     trades: tuple[BacktestTrade, ...]
     skips: dict[str, int]
     total_return: float | None
