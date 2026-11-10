@@ -19,6 +19,11 @@ interface Props {
 
 const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
 
+/** 没有历史序列时留一句说明，避免用户把空图当成"当天没有数据"。 */
+function SeriesNote() {
+  return <div className="spark-wrap spark-empty">无历史序列</div>;
+}
+
 function amountText(value: number | null): string {
   if (value === null || Number.isNaN(value)) return '—';
   if (value >= 1e8) return `${(value / 1e8).toFixed(0)} 亿`;
@@ -154,7 +159,11 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                 <div className="k">{index.name}</div>
                 <div className={`v ${toneOf(index.chg_pct)}`}>{fmt(index.close)}</div>
                 <div className={`s ${toneOf(index.chg_pct)}`}>{pct(index.chg_pct)}</div>
-                <Spark values={series.indices[i]?.values ?? []} tone="var(--muted)" />
+                {series.indices[i]?.values.length ? (
+                  <Spark values={series.indices[i].values} tone="var(--muted)" />
+                ) : (
+                  <SeriesNote />
+                )}
               </div>
             ))}
 
@@ -176,42 +185,46 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
               <div className="k">涨停</div>
               <div className="v up">{count(limit.sealed_up)}</div>
               <DeltaChip value={prev ? (limit.sealed_up ?? 0) - prev.sealed_up : null} />
-              <Spark values={series.sealed_up} kind="bar" tone="var(--up)" />
+              {series.sealed_up.length ? <Spark values={series.sealed_up} kind="bar" tone="var(--up)" /> : <SeriesNote />}
             </div>
 
             <div className="tile">
               <div className="k">跌停</div>
               <div className="v down">{count(limit.sealed_down)}</div>
               <DeltaChip value={prev && limit.sealed_down !== null ? limit.sealed_down - (prev.sealed_down ?? 0) : null} />
-              <Spark values={series.sealed_down} kind="bar" tone="var(--down)" />
+              {series.sealed_down.length ? <Spark values={series.sealed_down} kind="bar" tone="var(--down)" /> : <SeriesNote />}
             </div>
 
             <div className="tile">
               <div className="k">炸板</div>
               <div className="v">{count(limit.broken_up)}</div>
               <DeltaChip value={prev && limit.broken_up !== null ? limit.broken_up - (prev.broken_up ?? 0) : null} />
-              <Spark values={series.broken_up} kind="bar" tone="var(--muted-2)" />
+              {series.broken_up.length ? <Spark values={series.broken_up} kind="bar" tone="var(--muted-2)" /> : <SeriesNote />}
             </div>
 
             <div className="tile">
               <div className="k">封板率</div>
               <div className="v">{sealPct === null ? '—' : `${sealPct.toFixed(1)}%`}</div>
               <DeltaChip value={sealPct !== null && prevSealPct !== null ? sealPct - prevSealPct : null} unit="pt" />
-              <Spark values={series.seal_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+              {series.seal_rate.length ? (
+                <Spark values={series.seal_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+              ) : (
+                <SeriesNote />
+              )}
             </div>
 
             <div className="tile">
               <div className="k">最高板</div>
               <div className="v">{levelKeys[0] ?? 0}<small>板</small></div>
               <div className="s">昨日 {series.max_ladder[series.max_ladder.length - 2] ?? '—'} 板</div>
-              <Spark values={series.max_ladder} kind="bar" tone="var(--text)" />
+              {series.max_ladder.length ? <Spark values={series.max_ladder} kind="bar" tone="var(--text)" /> : <SeriesNote />}
             </div>
 
             <div className="tile">
               <div className="k">连板家数</div>
               <div className="v">{data.ladder.filter((r) => r.ladder >= 2).length}<small>只</small></div>
               <div className="s">含 2 板及以上</div>
-              <Spark values={series.ladder_count} kind="bar" tone="var(--muted-2)" />
+              {series.ladder_count.length ? <Spark values={series.ladder_count} kind="bar" tone="var(--muted-2)" /> : <SeriesNote />}
             </div>
 
             <div className="tile">
@@ -220,14 +233,18 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                 {data.promotion[0]?.rate == null ? '—' : `${(data.promotion[0].rate * 100).toFixed(0)}%`}
               </div>
               <div className="s">首板 → 二板</div>
-              <Spark values={series.promotion_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+              {series.promotion_rate.length ? (
+                <Spark values={series.promotion_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+              ) : (
+                <SeriesNote />
+              )}
             </div>
 
             <div className="tile">
               <div className="k">两市成交</div>
               <div className="v">{amountText(market.amount)}</div>
               <DeltaChip value={prev && market.amount !== null ? (market.amount - prev.amount) / 1e12 : null} unit="yi" />
-              <Spark values={series.amount.map((v) => v / 1e12)} tone="var(--muted)" />
+              {series.amount.length ? <Spark values={series.amount.map((v) => v / 1e12)} tone="var(--muted)" /> : <SeriesNote />}
             </div>
 
             <div className="tile">
@@ -237,7 +254,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                 <small>/ {market.new_low_63 === null ? '—' : market.new_low_63}</small>
               </div>
               <div className="s">63 日</div>
-              <Spark values={series.new_high_63} tone="var(--muted)" />
+              {series.new_high_63.length ? <Spark values={series.new_high_63} tone="var(--muted)" /> : <SeriesNote />}
             </div>
           </div>
 

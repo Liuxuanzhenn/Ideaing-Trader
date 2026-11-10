@@ -39,6 +39,19 @@ interface LiveLadderRow {
   name: string | null;
 }
 
+interface LiveSeries {
+  dates: string[];
+  sealed_up: number[];
+  sealed_down: number[];
+  broken_up: number[];
+  seal_rate: (number | null)[];
+  red_ratio: (number | null)[];
+  max_ladder: number[];
+  ladder_count: number[];
+  amount: number[];
+  indices: { code: string; name: string; closes: (number | null)[] }[];
+}
+
 export interface LiveReview {
   meta: LiveMeta;
   is_trading_day: boolean;
@@ -47,6 +60,7 @@ export interface LiveReview {
   ladder: LiveLadderRow[];
   indices: LiveIndex[];
   excluded: Record<string, number>;
+  series?: LiveSeries;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -172,6 +186,7 @@ export function liveGaps(review: LiveReview): string[] {
 /** Adapts the live payload to the view model the page already renders. */
 export function toPageReview(review: LiveReview): Review {
   const excluded = review.excluded ?? {};
+  const live = review.series && review.series.dates.length > 0 ? review.series : null;
   return {
     meta: {
       as_of: review.meta.as_of,
@@ -213,16 +228,22 @@ export function toPageReview(review: LiveReview): Review {
     promotion: [],
     prev: null,
     series: {
-      dates: [],
-      indices: [],
-      sealed_up: [],
-      sealed_down: [],
-      broken_up: [],
-      seal_rate: [],
-      max_ladder: [],
-      ladder_count: [],
-      amount: [],
-      red_ratio: [],
+      dates: live?.dates ?? [],
+      // A day with no index bar (e.g. 创业板指 before 2010-06) is dropped rather than
+      // carried forward: the spark is a shape hint, and carrying a stale close would
+      // draw a flat segment that never happened.
+      indices: (live?.indices ?? []).map((index) => ({
+        code: index.code,
+        values: index.closes.filter((close): close is number => close !== null),
+      })),
+      sealed_up: live?.sealed_up ?? [],
+      sealed_down: live?.sealed_down ?? [],
+      broken_up: live?.broken_up ?? [],
+      seal_rate: live?.seal_rate ?? [],
+      max_ladder: live?.max_ladder ?? [],
+      ladder_count: live?.ladder_count ?? [],
+      amount: live?.amount ?? [],
+      red_ratio: live?.red_ratio ?? [],
       new_high_63: [],
       new_low_63: [],
       promotion_rate: [],
