@@ -69,19 +69,19 @@ class Breadth:
 
 @dataclass(frozen=True, slots=True)
 class LimitStats:
+    """Limit states for one session; derived counts are materialized for the wire."""
+
     sealed_up: int
     broken_up: int
     sealed_down: int
     no_limit: int
+    touched_up: int = 0
+    seal_rate: float | None = None
 
-    @property
-    def touched_up(self) -> int:
-        return self.sealed_up + self.broken_up
-
-    @property
-    def seal_rate(self) -> float | None:
-        """Sealed share of limit-up attempts; None when nothing reached the limit."""
-        return self.sealed_up / self.touched_up if self.touched_up else None
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "touched_up", self.sealed_up + self.broken_up)
+        rate = self.sealed_up / self.touched_up if self.touched_up else None
+        object.__setattr__(self, "seal_rate", rate)
 
 
 @dataclass(frozen=True, slots=True)
