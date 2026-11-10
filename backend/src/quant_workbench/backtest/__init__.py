@@ -1,5 +1,6 @@
-"""Backtest execution rules: signals, fills, fees."""
+"""Backtest execution rules: signals, fills, fees, portfolio loop."""
 
+from .engine import BacktestResult, Skip, Trade, run_backtest
 from .execution import (
     BUY,
     LIMIT_DOWN_OPEN,
@@ -15,6 +16,10 @@ from .execution import (
 
 __all__ = [
     "BUY",
+    "BacktestResult",
+    "Skip",
+    "Trade",
+    "run_backtest",
     "LIMIT_DOWN_OPEN",
     "LIMIT_UP_OPEN",
     "NO_REFERENCE_PRICE",
