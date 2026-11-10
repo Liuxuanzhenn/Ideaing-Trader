@@ -78,6 +78,7 @@ const ERROR_TEXT: Record<string, string> = {
   INVALID_BACKTEST: '回测参数不被接受',
   INVALID_SCREEN: '筛选条件不被接受',
   UNKNOWN_LIST: '未知的清单类型',
+  UNAUTHORIZED: '接口未授权：token 缺失或无效',
 };
 
 /**

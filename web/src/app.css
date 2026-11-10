@@ -664,3 +664,5 @@ table.data.sectors .link-chip { font-size: 13px; }
 .stat4 .s.ctx b.flat { color: var(--muted); }
 .stat4 + .range-row { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .07); }
 @media (max-width: 1024px) { .stat4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.kline-note { color: var(--muted-2); font-size: 12px; }

@@ -49,6 +49,10 @@ export function StockPage(props: Props) {
   );
 }
 
+/**
+ * 区间表现（展示层派生）：全部由日线收盘价计算，不来自后端。
+ * 历史不足时返回 null 而不是 0——5/10/20/60 日涨幅、量比、波动率都遵循这条。
+ */
 function rangeStats(candles: { close: number; high: number; low: number; volume: number }[]) {
   if (candles.length < 2) return null;
   const last = candles[candles.length - 1];
@@ -181,7 +185,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
           <div className="card section">
             <div className="card-head">
               <span className="card-title">关键统计</span>
-              <span className="card-sub">按收盘价计算</span>
+              <span className="card-sub">区间与量比按日线计算 · 展示层</span>
             </div>
 
             <div className="stat4">

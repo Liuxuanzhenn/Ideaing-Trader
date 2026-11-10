@@ -59,6 +59,10 @@ function macd(closes: number[]) {
   return { dif, dea, hist: dif.map((value, i) => (value - dea[i]) * 2) };
 }
 
+/**
+ * KDJ(9,3,3)：RSV 窗口取最近 9 根，不足 9 根时用已有长度（通达信同口径）；
+ * K/D 初值 50，J = 3K - 2D。
+ */
 function kdj(candles: Candle[]) {
   const k: number[] = [];
   const d: number[] = [];
@@ -79,20 +83,43 @@ function kdj(candles: Candle[]) {
   return { k, d, j };
 }
 
-function rsi(closes: number[], span = 14): number[] {
-  const out: number[] = [50];
-  let gain = 0;
-  let loss = 0;
-  for (let i = 1; i < closes.length; i += 1) {
+/**
+ * Wilder RSI(14)：前 span 根没有足够样本，返回 null 而不是拿 50 冒充。
+ * 种子用前 span 个涨跌幅的简单平均，之后按 (prev*(span-1)+x)/span 平滑。
+ */
+function rsi(closes: number[], span = 14): (number | null)[] {
+  const out: (number | null)[] = out_of(closes.length);
+  if (closes.length <= span) return out;
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 1; i <= span; i += 1) {
     const diff = closes[i] - closes[i - 1];
-    gain = i <= span ? gain + Math.max(0, diff) : (gain * (span - 1) + Math.max(0, diff)) / span;
-    loss = i <= span ? loss + Math.max(0, -diff) : (loss * (span - 1) + Math.max(0, -diff)) / span;
-    out.push(i <= span ? 50 : loss === 0 ? 100 : 100 - 100 / (1 + gain / loss));
+    avgGain += Math.max(0, diff);
+    avgLoss += Math.max(0, -diff);
+  }
+  avgGain /= span;
+  avgLoss /= span;
+  for (let i = span; i < closes.length; i += 1) {
+    if (i > span) {
+      const diff = closes[i] - closes[i - 1];
+      avgGain = (avgGain * (span - 1) + Math.max(0, diff)) / span;
+      avgLoss = (avgLoss * (span - 1) + Math.max(0, -diff)) / span;
+    }
+    out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
   }
   return out;
 }
 
-/** 周/月按 5 / 20 个交易日近似聚合；真实自然周由后端按日历聚合。 */
+/** 预热期的空位，长度对齐 K 线。 */
+function out_of(length: number): (number | null)[] {
+  return Array.from({ length }, () => null);
+}
+
+/**
+ * 周/月按 5 / 20 个交易日近似聚合，从窗口起点每 5/20 根切一刀——**不等于自然周月**：
+ * 窗口起点若落在周中，分组会整体偏移；末尾不足一组也照常输出。date 取该组最后一根。
+ * 真实自然周由后端按日历聚合，这里只是展示层近似。
+ */
 function aggregate(candles: Candle[], period: KPeriod): Candle[] {
   if (period === 'day') return candles;
   const size = period === 'week' ? 5 : 20;
@@ -198,10 +225,12 @@ export function StockChart({
       })),
     );
 
-    const draw = (values: number[], color: string) => {
+    const draw = (values: (number | null)[], color: string) => {
       const line = chart.addSeries(LineSeries, { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 2);
       seriesRef.current.push(line);
-      line.setData(values.map((value, i) => ({ time: candles[i].date as Time, value })));
+      line.setData(
+        values.flatMap((value, i) => (value === null ? [] : [{ time: candles[i].date as Time, value }])),
+      );
     };
     if (indicator === 'macd') {
       const { dif, dea } = macd(closes);
@@ -238,6 +267,7 @@ export function StockChart({
       <div className="kline-legend">
         <span>MA5</span><span>MA10</span><span>MA20</span><span>MA60</span>
         <span>{IND_LABEL[indicator]}</span>
+        <span className="kline-note">指标为展示层计算，非后端权威值</span>
       </div>
     </div>
   );
