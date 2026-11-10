@@ -152,3 +152,25 @@ class GuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnreliableBandTests(unittest.TestCase):
+    def test_unadjusted_preclose_does_not_block_the_fill(self) -> None:
+        """When the day's range contradicts the band, the limit gate is skipped."""
+        stale_preclose = bar(
+            "600000",
+            DAY,
+            preclose="8.30",
+            open="0.40",
+            high="0.43",
+            low="0.32",
+            close="0.41",
+        )
+        result = fill_at_open(stale_preclose, BUY, Decimal("100"), FEES)
+        self.assertIsInstance(result, Fill)
+
+    def test_a_normal_limit_up_open_is_still_rejected(self) -> None:
+        locked = bar("600000", DAY, preclose="10.00", open="11.00", high="11.00", low="11.00", close="11.00")
+        result = fill_at_open(locked, BUY, Decimal("100"), FEES)
+        self.assertIsInstance(result, Rejection)
+        self.assertEqual(result.reason, LIMIT_UP_OPEN)

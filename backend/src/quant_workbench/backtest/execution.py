@@ -101,10 +101,15 @@ def fill_at_open(
     limits = limit_prices(bar.preclose, ratio)
     if limits is not None:
         upper, lower = limits
-        if side == BUY and bar.open >= upper:
-            return Rejection(LIMIT_UP_OPEN, f"{bar.symbol} opened at the upper limit {upper}")
-        if side == SELL and bar.open <= lower:
-            return Rejection(LIMIT_DOWN_OPEN, f"{bar.symbol} opened at the lower limit {lower}")
+        # Upstream preclose is sometimes not adjusted on an ex-dividend date, which
+        # puts a whole session outside its computed band. Rejecting on a band the day
+        # itself contradicts would block valid trades, so the gate is skipped there.
+        band_unreliable = bar.high > upper or bar.low < lower
+        if not band_unreliable:
+            if side == BUY and bar.open >= upper:
+                return Rejection(LIMIT_UP_OPEN, f"{bar.symbol} opened at the upper limit {upper}")
+            if side == SELL and bar.open <= lower:
+                return Rejection(LIMIT_DOWN_OPEN, f"{bar.symbol} opened at the lower limit {lower}")
 
     price = open_fill_price(bar, side, fees)
     if price <= 0:
