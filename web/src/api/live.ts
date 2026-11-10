@@ -24,13 +24,28 @@ interface LiveLimits {
   seal_rate: number | null;
 }
 
+interface LiveIndex {
+  code: string;
+  name: string;
+  close: number;
+  chg_pct: number;
+  amount: number;
+}
+
+interface LiveLadderRow {
+  symbol: string;
+  streak: number;
+  is_one_word: boolean;
+  name: string | null;
+}
+
 export interface LiveReview {
   meta: LiveMeta;
   is_trading_day: boolean;
   breadth: { up: number; down: number; flat: number };
   limits: LiveLimits;
-  ladder: unknown[];
-  indices: unknown[];
+  ladder: LiveLadderRow[];
+  indices: LiveIndex[];
   excluded: Record<string, number>;
 }
 
@@ -51,7 +66,6 @@ export async function fetchLiveReview(date: string): Promise<LiveReview> {
 export function liveGaps(review: LiveReview): string[] {
   const gaps: string[] = [];
   if (review.indices.length === 0) gaps.push('指数行情');
-  if (review.ladder.length === 0) gaps.push('连板梯队');
   gaps.push('板块表现', '资金流', '资讯');
   return gaps;
 }
@@ -74,7 +88,13 @@ export function toPageReview(review: LiveReview): Review {
       },
     },
     is_trading_day: review.is_trading_day,
-    indices: [],
+    indices: review.indices.map((index) => ({
+      code: index.code,
+      name: index.name,
+      close: index.close,
+      chg_pct: index.chg_pct,
+      amount: index.amount,
+    })),
     breadth: review.breadth,
     limit: {
       sealed_up: review.limits.sealed_up,
@@ -90,7 +110,14 @@ export function toPageReview(review: LiveReview): Review {
     series: { indices: [] },
     sectors: [],
     flows: { inflow: [], outflow: [] },
-    ladder: [],
+    ladder: review.ladder.map((entry) => ({
+      code: entry.symbol,
+      // Names are not stored yet; showing the code beats showing an empty cell.
+      name: entry.name ?? entry.symbol,
+      ladder: entry.streak,
+      industry: null,
+      seal_time: null,
+    })),
     news: [],
   } as unknown as Review;
 }

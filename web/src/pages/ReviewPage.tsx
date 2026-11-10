@@ -110,12 +110,12 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
       ) : null}
       {meta.status.level === 'stale' ? <StaleBanner meta={meta} /> : null}
       {meta.status.level === 'partial' ? <PartialBanner meta={meta} /> : null}
-      {/* Live data has no indices yet; mock always does. Empty index tiles would read as
-          "nothing happened today", so the gap is named instead. */}
-      {data.is_trading_day && data.indices.length === 0 ? (
+      {/* Live data lacks sector and flow blocks; empty cards would read as "nothing
+          happened today", so the gap is named instead. */}
+      {data.is_trading_day && (data.sectors.length === 0 || data.flows.inflow.length === 0) ? (
         <div className="card section">
           <div className="card-note">
-            真实数据已接入：市场宽度与涨跌停。以下尚未接入后端，故不显示：指数行情、连板梯队、板块表现、资金流、资讯。
+            真实数据已接入：指数行情、市场宽度、涨跌停、连板梯队。以下尚未接入后端，故不显示：板块表现、资金流、资讯。
             快照 {meta.snapshot.slice(0, 46)}
           </div>
         </div>
