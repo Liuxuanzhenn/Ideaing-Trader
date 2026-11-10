@@ -20,6 +20,13 @@ import type { Candle } from '../api/types';
 export type KPeriod = 'day' | 'week' | 'month';
 export type KIndicator = 'macd' | 'kdj' | 'rsi';
 
+/** 图表 time 必须是 yyyy-mm-dd；单条坏日期丢弃，不让它拖垮整页。 */
+function isoDate(date: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  if (/^\d{2}-\d{2}$/.test(date)) return `${new Date().getFullYear()}-${date}`;
+  return null;
+}
+
 const UP = '#e04b4b';
 const DOWN = '#2fa36b';
 const MUTED = '#8a8a92';
@@ -151,7 +158,10 @@ export function StockChart({
     for (const series of seriesRef.current) chart.removeSeries(series);
     seriesRef.current = [];
 
-    const candles = aggregate(raw, period);
+    const candles = aggregate(raw, period).flatMap((item) => {
+      const date = isoDate(item.date);
+      return date ? [{ ...item, date }] : [];
+    });
     if (!candles.length) return;
 
     const price = chart.addSeries(CandlestickSeries, {

@@ -12,16 +12,18 @@ import react from '@vitejs/plugin-react';
 // Minimal local declaration keeps the config typed without adding @types/node.
 declare const process: { env: Record<string, string | undefined> };
 
-const token = process.env.QW_API_TOKEN;
-if (!token) {
-  throw new Error(
-    'QW_API_TOKEN is not set. Start the dev server with the API token in the environment, e.g. in PowerShell: $env:QW_API_TOKEN="..."; npm run dev',
-  );
-}
-
 const apiTarget = process.env.QW_API_TARGET ?? 'http://127.0.0.1:8022';
 
-export default defineConfig({
+export default defineConfig(({ command }) => {
+  // 只有 dev proxy 需要 token；build 不代理任何请求，无 token 也必须通过。
+  const token = process.env.QW_API_TOKEN;
+  if (command === 'serve' && !token) {
+    throw new Error(
+      'QW_API_TOKEN is not set. Start the dev server with the API token in the environment, e.g. in PowerShell: $env:QW_API_TOKEN="..."; npm run dev',
+    );
+  }
+
+  return {
   plugins: [react()],
   server: {
     // Keep the dev server on loopback: it injects the token on your behalf, so anyone
@@ -32,7 +34,7 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: false,
-        headers: { authorization: `Bearer ${token}` },
+        headers: { authorization: `Bearer ${token ?? ''}` },
       },
       '/health': {
         target: apiTarget,
@@ -40,4 +42,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

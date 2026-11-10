@@ -275,9 +275,10 @@ function candlesFor(seed: number, price: number): Candle[] {
     close *= 1 + drift + (random() - 0.5) * 0.03;
     const high = Math.max(open, close) * (1 + random() * 0.01);
     const low = Math.min(open, close) * (1 - random() * 0.01);
-    const date = new Date(Date.now() - i * DAY);
+    const day = new Date(Date.now() - i * DAY);
+    // K 线 time 必须 yyyy-mm-dd（契约同为 ISO），lightweight-charts 不接受 MM-DD
     out.push({
-      date: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      date: `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`,
       open: +open.toFixed(2),
       high: +high.toFixed(2),
       low: +low.toFixed(2),
