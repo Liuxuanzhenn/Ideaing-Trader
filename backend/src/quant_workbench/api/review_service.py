@@ -18,18 +18,33 @@ from quant_workbench.market.calendar import TradingCalendar
 from quant_workbench.market.limits import NEW_LISTING_SESSIONS, is_st_effective
 from quant_workbench.market.review import breadth, limit_stats
 
-from .contracts import EMPTY, OK, Breadth, DataMeta, IndexQuote, LadderEntry, LimitStats, Review
+from .contracts import (
+    EMPTY,
+    OK,
+    Breadth,
+    DataMeta,
+    IndexQuote,
+    IndexSeries,
+    LadderEntry,
+    LimitStats,
+    Review,
+    SessionPoint,
+    SessionSeries,
+)
 from .repository import (
     Connection,
     fetch_first_trade_dates,
+    fetch_index_closes,
     fetch_index_quotes,
     fetch_ladder,
     fetch_null_price_count,
     fetch_session_bars,
+    fetch_session_stats,
     fetch_sessions,
 )
 
 LADDER_MIN_STREAK = 2
+SERIES_SESSIONS = 20
 
 
 def build_review(
@@ -96,6 +111,7 @@ def build_review(
         excluded=excluded,
         indices=indices,
         ladder=ladder,
+        series=_series(conn, trade_date),
     )
 
 
@@ -125,4 +141,65 @@ def _meta(trade_date: date, level: str, snapshot_id: str, updated_at: datetime) 
         updated_at=updated_at,
         snapshot_id=snapshot_id,
         level=level,
+    )
+
+
+def _series(conn: Connection, trade_date: date) -> SessionSeries:
+    """Trailing aggregates for the sparklines.
+
+    The numbers come from the precomputed `session_stats` table so a 20-day window
+    costs one small read. If that table is missing or shorter than the window, the
+    series is simply shorter - an empty chart must not be filled with made-up points.
+    """
+    rows = fetch_session_stats(conn, trade_date, SERIES_SESSIONS)
+    if not rows:
+        return SessionSeries()
+    points = [
+        SessionPoint(
+            trade_date=date.fromisoformat(str(row[0])),
+            up=int(row[1]),
+            down=int(row[2]),
+            flat=int(row[3]),
+            sealed_up=int(row[4]),
+            broken_up=int(row[5]),
+            sealed_down=int(row[6]),
+            touched_up=int(row[7]),
+            seal_rate=float(row[8]) if row[8] is not None else None,
+            max_ladder=int(row[9]),
+            ladder_count=int(row[10]),
+            amount=float(row[11]),
+        )
+        for row in rows
+    ]
+    return SessionSeries(
+        dates=tuple(point.trade_date for point in points),
+        sealed_up=tuple(point.sealed_up for point in points),
+        sealed_down=tuple(point.sealed_down for point in points),
+        broken_up=tuple(point.broken_up for point in points),
+        seal_rate=tuple(point.seal_rate for point in points),
+        red_ratio=tuple(
+            point.up / (point.up + point.down + point.flat) if (point.up + point.down + point.flat) else None
+            for point in points
+        ),
+        max_ladder=tuple(point.max_ladder for point in points),
+        ladder_count=tuple(point.ladder_count for point in points),
+        amount=tuple(point.amount for point in points),
+        indices=_index_series(conn, points),
+    )
+
+
+def _index_series(conn: Connection, points: list[SessionPoint]) -> tuple[IndexSeries, ...]:
+    """Index closes aligned to the session dates; a gap stays None rather than being carried."""
+    rows = fetch_index_closes(conn, points[0].trade_date, points[-1].trade_date)
+    by_code: dict[str, tuple[str, dict[str, float]]] = {}
+    for code, name, stored_date, close in rows:
+        entry = by_code.setdefault(code, (name, {}))
+        entry[1][str(stored_date)] = float(close)
+    return tuple(
+        IndexSeries(
+            code=code,
+            name=name,
+            closes=tuple(closes.get(point.trade_date.isoformat()) for point in points),
+        )
+        for code, (name, closes) in sorted(by_code.items())
     )

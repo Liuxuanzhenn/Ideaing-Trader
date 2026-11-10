@@ -95,6 +95,48 @@ class LadderEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class SessionPoint:
+    """One day of market-wide aggregates, straight from the precomputed table."""
+
+    trade_date: date
+    up: int
+    down: int
+    flat: int
+    sealed_up: int
+    broken_up: int
+    sealed_down: int
+    touched_up: int
+    seal_rate: float | None
+    max_ladder: int
+    ladder_count: int
+    amount: float
+
+
+@dataclass(frozen=True, slots=True)
+class IndexSeries:
+    code: str
+    name: str
+    closes: tuple[float | None, ...]
+    """Aligned with SessionSeries.dates; None where the index has no bar that day."""
+
+
+@dataclass(frozen=True, slots=True)
+class SessionSeries:
+    """Trailing sessions for the sparklines; oldest first, ending on the review date."""
+
+    dates: tuple[date, ...] = ()
+    sealed_up: tuple[int, ...] = ()
+    sealed_down: tuple[int, ...] = ()
+    broken_up: tuple[int, ...] = ()
+    seal_rate: tuple[float | None, ...] = ()
+    red_ratio: tuple[float | None, ...] = ()
+    max_ladder: tuple[int, ...] = ()
+    ladder_count: tuple[int, ...] = ()
+    amount: tuple[float, ...] = ()
+    indices: tuple[IndexSeries, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class Review:
     meta: DataMeta
     is_trading_day: bool
@@ -104,6 +146,7 @@ class Review:
     indices: tuple[IndexQuote, ...] = ()
     excluded: dict[str, int] = field(default_factory=dict)
     """Why rows were dropped, e.g. {"suspended": 42, "st": 130}."""
+    series: SessionSeries = field(default_factory=SessionSeries)
 
 
 @dataclass(frozen=True, slots=True)

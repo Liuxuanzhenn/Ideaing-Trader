@@ -77,6 +77,23 @@ FROM limit_streaks
 WHERE symbol = ? AND trade_date BETWEEN ? AND ?
 """
 
+SESSION_STATS_SQL = """
+SELECT trade_date, up, down, flat, sealed_up, broken_up, sealed_down,
+       touched_up, seal_rate, max_ladder, ladder_count, amount
+FROM session_stats
+WHERE trade_date <= ?
+ORDER BY trade_date DESC
+LIMIT ?
+"""
+
+INDEX_CLOSES_SQL = """
+SELECT b.code, m.name, b.trade_date, b.close
+FROM index_bars b
+JOIN index_meta m ON m.code = b.code
+WHERE b.trade_date <= ? AND b.trade_date >= ?
+ORDER BY b.code, b.trade_date
+"""
+
 QUALITY_SQL = """
 SELECT check_id, scope, value, threshold, verdict, note
 FROM data_quality
@@ -170,6 +187,18 @@ def fetch_symbol_streaks(conn: Connection, symbol: str, start: date, end: date) 
     if not rows:
         return 0, 0
     return int(rows[0][0]), int(rows[0][1])
+
+
+def fetch_session_stats(conn: Connection, end: date, limit: int) -> list[tuple[Any, ...]]:
+    """Newest `limit` days of market aggregates, oldest first."""
+    rows = conn.execute(SESSION_STATS_SQL, [end.isoformat(), limit]).fetchall()
+    return list(reversed(rows))
+
+
+def fetch_index_closes(
+    conn: Connection, start: date, end: date
+) -> list[tuple[str, str, str, float]]:
+    return list(conn.execute(INDEX_CLOSES_SQL, [end.isoformat(), start.isoformat()]).fetchall())
 
 
 def _to_decimal(value: Any) -> Decimal:

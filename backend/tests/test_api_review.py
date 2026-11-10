@@ -26,6 +26,10 @@ class FakeConnection:
         self.indices = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
         self.null_price = 0
         self.ladder = [("SZ300446", 25, True)]
+        self.stats = [
+            ("2026-11-06", 500, 400, 60, 33, 16, 15, 49, 0.6734, 5, 12, 1.5e12),
+        ]
+        self.index_closes = [("sh.000300", "沪深300", "2026-11-06", 4012.5)]
         self.sessions = sessions if sessions is not None else [
             (f"2026-11-{day:02d}",) for day in range(1, 7)
         ]
@@ -35,8 +39,11 @@ class FakeConnection:
         self.calls.append((query, parameters))
         if "IS NULL" in query:
             rows = [(self.null_price,)]
+        elif "FROM session_stats" in query:
+            # The real query is ORDER BY trade_date DESC LIMIT n
+            rows = sorted(self.stats, key=lambda item: item[0], reverse=True)
         elif "FROM index_bars" in query:
-            rows = self.indices
+            rows = self.index_closes if "b.trade_date <=" in query else self.indices
         elif "FROM limit_streaks" in query:
             rows = self.ladder
         elif "count(*)" in query:
@@ -208,3 +215,42 @@ class NullPriceRowTests(unittest.TestCase):
         review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
         self.assertEqual(review.excluded["no_price"], 1)
         self.assertEqual(review.breadth.total, 1)
+
+
+class SeriesTests(unittest.TestCase):
+    def test_series_comes_from_session_stats_oldest_first(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.stats = [
+            ("2026-11-05", 400, 500, 50, 20, 10, 30, 30, 0.6666, 4, 8, 1.4e12),
+            ("2026-11-06", 500, 400, 60, 33, 16, 15, 49, 0.6734, 5, 12, 1.5e12),
+        ]
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(review.series.dates, (date(2026, 11, 5), date(2026, 11, 6)))
+        self.assertEqual(review.series.sealed_up, (20, 33))
+        self.assertEqual(review.series.max_ladder, (4, 5))
+        self.assertEqual(review.series.broken_up, (10, 16))
+
+    def test_red_ratio_is_none_when_nothing_was_counted(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.stats = [("2026-11-06", 0, 0, 0, 0, 0, 0, 0, None, 0, 0, 0.0)]
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertIsNone(review.series.red_ratio[0])
+        self.assertIsNone(review.series.seal_rate[0])
+
+    def test_index_closes_align_with_dates_and_keep_gaps_empty(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.stats = [
+            ("2026-11-05", 1, 1, 1, 1, 0, 0, 1, 1.0, 1, 0, 1.0),
+            ("2026-11-06", 1, 1, 1, 1, 0, 0, 1, 1.0, 1, 0, 1.0),
+        ]
+        conn.index_closes = [("sh.000300", "沪深300", "2026-11-06", 4012.5)]
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(review.series.indices[0].name, "沪深300")
+        self.assertEqual(review.series.indices[0].closes, (None, 4012.5))
+
+    def test_missing_session_stats_yields_an_empty_series(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        conn.stats = []
+        review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        self.assertEqual(review.series.dates, ())
+        self.assertEqual(review.series.sealed_up, ())

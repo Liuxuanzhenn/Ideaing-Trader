@@ -27,8 +27,13 @@ class FakeConnection:
     def execute(self, query, parameters=None):
         if "IS NULL" in query:
             rows = [(0,)]
+        elif "FROM session_stats" in query:
+            rows = [("2026-11-06", 500, 400, 60, 33, 16, 15, 49, 0.6734, 5, 12, 1.5e12)]
         elif "FROM index_bars" in query:
-            rows = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
+            if "b.trade_date <=" in query:
+                rows = [("sh.000300", "沪深300", "2026-11-06", 4012.5)]
+            else:
+                rows = [("sh.000300", "沪深300", 4012.5, 0.82, 3.1e11)]
         elif "FROM limit_streaks" in query:
             rows = [("SZ300446", 25, True)]
         elif "FROM data_quality" in query:
