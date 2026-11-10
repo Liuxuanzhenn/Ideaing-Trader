@@ -9,6 +9,10 @@ import {
   submitLiveBacktest,
   fetchLiveBacktestOptions,
   fetchLiveBacktestResult,
+  fetchLivePortfolio,
+  addLiveWatchlist,
+  removeLiveWatchlist,
+  addLiveBasket,
   toPageReview,
   type LiveReview,
 } from './api/live';
@@ -64,6 +68,10 @@ export default function App() {
       getBacktestOptions: fetchLiveBacktestOptions,
       submitBacktest: submitLiveBacktest,
       getBacktestResult: fetchLiveBacktestResult,
+      getPortfolio: fetchLivePortfolio,
+      addWatchlist: addLiveWatchlist,
+      removeWatchlist: removeLiveWatchlist,
+      addBasket: addLiveBasket,
       getReview: async (date: string) => {
         const live: LiveReview = await fetchLiveReview(date);
         return toPageReview(live);

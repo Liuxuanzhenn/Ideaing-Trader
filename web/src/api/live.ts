@@ -461,6 +461,32 @@ export async function fetchLiveBacktestResult(taskId: string): Promise<import('.
   return toBacktestResult(report);
 }
 
+export async function fetchLivePortfolio(): Promise<import('./types').Portfolio> {
+  return getJson<import('./types').Portfolio>('/api/portfolio');
+}
+
+async function changePortfolio(
+  path: string,
+  method: 'POST' | 'DELETE',
+  body?: unknown,
+): Promise<import('./types').Portfolio> {
+  const response = await fetch(path, {
+    method,
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as { detail?: { message?: string } };
+    throw new Error(payload.detail?.message ?? `HTTP ${response.status}`);
+  }
+  return (await response.json()) as import('./types').Portfolio;
+}
+
+export const addLiveWatchlist = (code: string) => changePortfolio('/api/portfolio/watchlist', 'POST', { code });
+export const removeLiveWatchlist = (code: string) =>
+  changePortfolio(`/api/portfolio/watchlist/${encodeURIComponent(code)}`, 'DELETE');
+export const addLiveBasket = (code: string) => changePortfolio('/api/portfolio/basket', 'POST', { code });
+
 /** Blocks the backend cannot serve yet; the page must say so instead of showing zeros. */
 export function liveGaps(review: LiveReview): string[] {
   const gaps: string[] = [];
