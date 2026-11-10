@@ -50,6 +50,9 @@ DEFAULT_CAPITAL = Decimal("1000000")
 DEFAULT_MAX_POSITIONS = 10
 DEFAULT_HOLDING_DAYS = 5
 WARMUP_DAYS = 10
+# 2 GB cgroup: smaller batches and a shorter default window keep the peak off the ceiling.
+BAR_CHUNK = 200
+DEFAULT_WINDOW = 120
 BENCHMARK_CODE = "sh.000300"
 BENCHMARK_LABEL = "沪深300"
 
@@ -118,7 +121,9 @@ def run(
             note="区间内没有任何首板信号，未发生交易",
         )
 
-    bars = fetch_bars_for_symbols(conn, symbols, begin - timedelta(days=WARMUP_DAYS), finish)
+    bars = fetch_bars_for_symbols(
+        conn, symbols, begin - timedelta(days=WARMUP_DAYS), finish, chunk=BAR_CHUNK
+    )
     calendar = TradingCalendar(sessions)
     result = run_backtest(
         bars=bars,
@@ -206,9 +211,9 @@ def _benchmark(
 
 
 def _default_start(sessions: list[date], finish: date) -> date:
-    """A year of sessions by default: long enough to mean something, short enough to fit."""
+    """A half year of sessions by default: long enough to mean something, short enough to fit."""
     window = [session for session in sessions if session <= finish]
-    return window[max(0, len(window) - 250)]
+    return window[max(0, len(window) - DEFAULT_WINDOW)]
 
 
 def _float(value: Decimal | None) -> float | None:

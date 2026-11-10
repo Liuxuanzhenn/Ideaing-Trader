@@ -52,7 +52,8 @@ ORDER BY b.code
 LADDER_SQL = """
 SELECT s.symbol, s.streak, s.is_one_word
 FROM limit_streaks s
-WHERE s.trade_date = ? AND s.streak >= ?
+LEFT JOIN bars b ON b.symbol = s.symbol AND b.trade_date = s.trade_date
+WHERE s.trade_date = ? AND s.streak >= ? AND (? OR coalesce(b.is_st, 0) = 0)
 ORDER BY s.streak DESC, s.symbol
 """
 
@@ -176,8 +177,13 @@ def fetch_index_quotes(conn: Connection, trade_date: date) -> list[tuple[str, st
     return list(conn.execute(INDEX_QUOTES_SQL, [trade_date.isoformat()]).fetchall())
 
 
-def fetch_ladder(conn: Connection, trade_date: date, min_streak: int) -> list[tuple[str, int, bool]]:
-    return list(conn.execute(LADDER_SQL, [trade_date.isoformat(), min_streak]).fetchall())
+def fetch_ladder(
+    conn: Connection, trade_date: date, min_streak: int, *, include_st: bool = False
+) -> list[tuple[str, int, bool]]:
+    """Ladder rows, excluding ST by default so it matches the sealed-up count above it."""
+    return list(
+        conn.execute(LADDER_SQL, [trade_date.isoformat(), min_streak, include_st]).fetchall()
+    )
 
 
 def fetch_quality_checks(conn: Connection) -> list[dict[str, Any]]:

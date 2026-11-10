@@ -146,10 +146,22 @@ def run_backtest(
             budget = cash / Decimal(max_positions - len(positions))
             price = open_fill_price(bar, BUY, fees)
             quantity = (budget / price / LOT).to_integral_value(rounding=ROUND_DOWN) * LOT
-            if quantity < LOT or quantity * price > cash:
+            # The budget covers the notional, not the commission, so trim whole lots until
+            # the fill (notional + fee) fits in cash. Buying first and discovering a
+            # negative balance afterwards would abort a run that is otherwise valid.
+            outcome = fill_at_open(bar, BUY, quantity, fees) if quantity >= LOT else None
+            while (
+                isinstance(outcome, Fill)
+                and outcome.notional + outcome.fee > cash
+                and quantity > LOT
+            ):
+                quantity -= LOT
+                outcome = fill_at_open(bar, BUY, quantity, fees)
+            if quantity < LOT or outcome is None or (
+                isinstance(outcome, Fill) and outcome.notional + outcome.fee > cash
+            ):
                 skips.append(Skip(session, symbol, "budget_too_small"))
                 continue
-            outcome = fill_at_open(bar, BUY, quantity, fees)
             if isinstance(outcome, Rejection):
                 skips.append(Skip(session, symbol, outcome.reason))
                 continue

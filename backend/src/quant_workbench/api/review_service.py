@@ -102,7 +102,9 @@ def build_review(
     )
     ladder = tuple(
         LadderEntry(symbol=symbol, streak=int(streak), is_one_word=bool(one_word))
-        for symbol, streak, one_word in fetch_ladder(conn, trade_date, LADDER_MIN_STREAK)
+        for symbol, streak, one_word in fetch_ladder(
+            conn, trade_date, LADDER_MIN_STREAK, include_st=not exclude_st
+        )
     )
     return Review(
         meta=_meta(trade_date, OK, snapshot_id, updated_at),

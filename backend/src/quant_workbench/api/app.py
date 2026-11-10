@@ -22,6 +22,7 @@ from .repository import resolve_symbol
 from decimal import Decimal, InvalidOperation
 
 from .backtest_service import STRATEGIES, run as run_backtest_job
+from .portfolio_store import PortfolioStore
 from .review_service import build_review
 from .screen_service import options as screen_options, screen
 from .stock_service import build_stock
@@ -36,6 +37,7 @@ def create_app(
     *,
     api_token: str | None = None,
     allow_anonymous: bool | None = None,
+    portfolio: PortfolioStore | None = None,
 ) -> FastAPI:
     """Build the app. Without a token, requests are refused unless anonymity is
     explicitly enabled, because this service reads private research data and has no
@@ -52,6 +54,7 @@ def create_app(
     )
     app = FastAPI(title="Quant Workbench", version="0.1.0")
     opener = connect or _duckdb_opener(DEFAULT_DB_PATH)
+    lists = portfolio or PortfolioStore()
 
     @app.middleware("http")
     async def require_token(request: Request, call_next):
@@ -221,6 +224,27 @@ def create_app(
             conn.close()
         return JSONResponse(content=to_jsonable(payload))
 
+    @app.get("/api/portfolio")
+    def portfolio_state() -> JSONResponse:
+        return JSONResponse(content=to_jsonable(lists.list()))
+
+    @app.post("/api/portfolio/{kind}")
+    async def portfolio_add(kind: str, request: Request) -> JSONResponse:
+        body = await request.json()
+        symbol = _normalise_symbol(opener, body.get("code"))
+        try:
+            return JSONResponse(content=to_jsonable(lists.add(kind, symbol)))
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "UNKNOWN_LIST", "message": str(error)}) from error
+
+    @app.delete("/api/portfolio/{kind}/{code}")
+    def portfolio_remove(kind: str, code: str) -> JSONResponse:
+        symbol = _normalise_symbol(opener, code)
+        try:
+            return JSONResponse(content=to_jsonable(lists.remove(kind, symbol)))
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "UNKNOWN_LIST", "message": str(error)}) from error
+
     @app.get("/api/data-status")
     def data_status() -> JSONResponse:
         conn = opener()
@@ -244,6 +268,22 @@ def create_app(
         )
 
     return app
+
+
+def _normalise_symbol(opener: Callable[[], Connection], code: object) -> str:
+    """Store the same 8-character symbol the price tables use, so a list entry can join."""
+    text = str(code or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_CODE", "message": "code is required"})
+    conn = opener()
+    try:
+        return resolve_symbol(conn, text)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail={"code": "UNKNOWN_SYMBOL", "message": text}) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_CODE", "message": str(error)}) from error
+    finally:
+        conn.close()
 
 
 def _duckdb_opener(path: str) -> Callable[[], Connection]:

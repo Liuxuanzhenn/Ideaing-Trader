@@ -205,7 +205,8 @@ class IndexAndLadderTests(unittest.TestCase):
         conn = FakeConnection([row("SH600000")])
         build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
         ladder_calls = [call for call in conn.calls if "FROM limit_streaks" in call[0]]
-        self.assertEqual(ladder_calls[0][1], ["2026-11-06", 2])
+        # ST is excluded by default, so the ladder matches the sealed-up count above it.
+        self.assertEqual(ladder_calls[0][1], ["2026-11-06", 2, False])
 
 
 class NullPriceRowTests(unittest.TestCase):
@@ -301,3 +302,17 @@ class MarketExtraTests(unittest.TestCase):
         conn.promotion = [(1, 0, 0)]
         review = build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
         self.assertIsNone(review.market.promotion[0].rate)
+
+
+class LadderExclusionTests(unittest.TestCase):
+    def test_default_ladder_excludes_st(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
+        params = [call[1] for call in conn.calls if "FROM limit_streaks" in call[0]][0]
+        self.assertFalse(params[2])
+
+    def test_ladder_includes_st_when_exclusion_is_off(self) -> None:
+        conn = FakeConnection([row("SH600000")])
+        build_review(conn, DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED, exclude_st=False)
+        params = [call[1] for call in conn.calls if "FROM limit_streaks" in call[0]][0]
+        self.assertTrue(params[2])

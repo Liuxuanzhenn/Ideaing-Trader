@@ -182,3 +182,55 @@ class ValuationTests(unittest.TestCase):
         )
         for _, value in result.equity:
             self.assertGreaterEqual(value, Decimal("0"))
+
+
+class CommissionBoundaryTests(unittest.TestCase):
+    """A full-size order plus commission must never overdraw the account."""
+
+    def test_min_commission_does_not_push_cash_negative(self) -> None:
+        fees = FeeSchedule(
+            commission_rate=Decimal("0.0003"),
+            min_commission=Decimal("5"),
+            stamp_duty_rate=Decimal("0.0001"),
+            slippage_rate=Decimal("0"),
+        )
+        bars = {"600000": flat("600000", {day: "10.00" for day in D})}
+        result = run_backtest(
+            bars=bars,
+            entries={D[0]: ["600000"]},
+            calendar=CAL,
+            fees=fees,
+            start=D[0],
+            end=D[3],
+            capital=Decimal("1000"),
+            max_positions=1,
+            holding_days=2,
+        )
+        # 1000 yuan at 10.00 fits 100 shares = 1000 plus fees, which overdraws by 5 yuan,
+        # so the order is trimmed to nothing and reported instead of raising.
+        self.assertEqual(result.trades, ())
+        self.assertIn("budget_too_small", {skip.reason for skip in result.skips})
+        for _, value in result.equity:
+            self.assertGreaterEqual(value, Decimal("0"))
+
+    def test_one_lot_short_of_the_budget_still_fills(self) -> None:
+        fees = FeeSchedule(
+            commission_rate=Decimal("0.0003"),
+            min_commission=Decimal("5"),
+            stamp_duty_rate=Decimal("0.0001"),
+            slippage_rate=Decimal("0"),
+        )
+        bars = {"600000": flat("600000", {day: "10.00" for day in D})}
+        result = run_backtest(
+            bars=bars,
+            entries={D[0]: ["600000"]},
+            calendar=CAL,
+            fees=fees,
+            start=D[0],
+            end=D[3],
+            capital=Decimal("1010"),
+            max_positions=1,
+            holding_days=2,
+        )
+        self.assertEqual(len(result.trades), 1)
+        self.assertEqual(result.trades[0].quantity, Decimal("100"))
