@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createMockClient } from './api/mock';
+import { fetchLiveReview, liveGaps, toPageReview, type LiveReview } from './api/live';
 import type { ApiClient } from './api/client';
 import type { Portfolio } from './api/types';
 import { BottomBar } from './components/BottomBar';
@@ -20,6 +21,13 @@ import { readDemoState, writeDemoState, type DemoState } from './lib/demo';
 import { useAsync } from './lib/useAsync';
 import { fmtDate } from './lib/format';
 
+/** 复盘页当前无法由后端提供的数据块，由 live.ts 计算后交给页面提示。 */
+let liveGapsCache: string[] = [];
+
+export function currentLiveGaps(): string[] {
+  return liveGapsCache;
+}
+
 /** 兜底：数据状态接口不可用时才用自然日，且必须在页面上显式提示。 */
 function naturalDay(): string {
   const now = new Date();
@@ -38,7 +46,20 @@ export default function App() {
   const [portfolio, setPortfolio] = useState<Portfolio>(EMPTY_PORTFOLIO);
 
   // 阶段 1 只有 mock；createHttpClient() 是同一接口的真实实现
-  const client: ApiClient = useMemo(() => createMockClient(demo), [demo]);
+  // Live data serves the normal state; the state switcher still drives mock so every
+  // loading/empty/stale/partial/error branch stays demonstrable.
+  const client: ApiClient = useMemo(() => {
+    const mock = createMockClient(demo);
+    if (demo !== 'ok') return mock;
+    return {
+      ...mock,
+      getReview: async (date: string) => {
+        const live: LiveReview = await fetchLiveReview(date);
+        liveGapsCache = liveGaps(live);
+        return toPageReview(live);
+      },
+    };
+  }, [demo]);
 
   const loadStatus = useCallback(() => client.getServiceStatus(), [client]);
   const loadTasks = useCallback(() => client.getTasks({ limit: 20 }), [client]);
