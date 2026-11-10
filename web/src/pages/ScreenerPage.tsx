@@ -93,12 +93,30 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
             条件筛选
             <StatusChip level={opt.meta.status.level} />
           </h2>
-          <div className="view-sub">AND 组合 · 数据 as_of {opt.meta.as_of.slice(0, 10)} · 示例数据</div>
+          <div className="view-sub">AND 组合 · 数据 as_of {opt.meta.as_of.slice(0, 10)}</div>
         </div>
       </div>
 
       {opt.meta.status.level === 'stale' ? <StaleBanner meta={opt.meta} /> : null}
       {opt.meta.status.level === 'partial' ? <PartialBanner meta={opt.meta} /> : null}
+      {opt.unavailable?.length ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div>
+            <strong>部分条件不可用</strong>：{opt.unavailable.join('；')}。
+            这些条件不会出现在下拉里，因为没有数据的条件等于没有筛选。
+          </div>
+        </div>
+      ) : null}
+      {result?.excluded && Object.keys(result.excluded).length > 0 ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div>
+            <strong>筛选范围已说明</strong>：
+            {Object.entries(result.excluded).map(([key, value]) => `${key} 排除 ${value} 只`).join(' · ')}。
+          </div>
+        </div>
+      ) : null}
 
       <div className="card section">
         <div className="card-head">
@@ -194,7 +212,7 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
                     >
                       <td>
                         <div className="stock-cell">
-                          <span className="n">{row.name}</span>
+                          <span className="n">{row.name ?? row.code}</span>
                           <span className="c">{row.code}</span>
                         </div>
                       </td>

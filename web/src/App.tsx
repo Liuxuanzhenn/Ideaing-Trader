@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createMockClient } from './api/mock';
-import { fetchLiveReview, fetchLiveStatus, fetchLiveStock, toPageReview, type LiveReview } from './api/live';
+import {
+  fetchLiveReview,
+  fetchLiveScreenOptions,
+  fetchLiveStatus,
+  fetchLiveStock,
+  runLiveScreen,
+  toPageReview,
+  type LiveReview,
+} from './api/live';
 import type { ApiClient } from './api/client';
 import type { Portfolio } from './api/types';
 import { BottomBar } from './components/BottomBar';
@@ -48,6 +56,8 @@ export default function App() {
       ...mock,
       getServiceStatus: fetchLiveStatus,
       getStock: fetchLiveStock,
+      getScreenOptions: fetchLiveScreenOptions,
+      runScreen: runLiveScreen,
       getReview: async (date: string) => {
         const live: LiveReview = await fetchLiveReview(date);
         return toPageReview(live);

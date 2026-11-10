@@ -72,6 +72,19 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as { detail?: { code?: string; message?: string } };
+    throw new Error(payload.detail?.message ?? payload.detail?.code ?? `HTTP ${response.status}`);
+  }
+  return (await response.json()) as T;
+}
+
 export async function fetchLiveReview(date: string): Promise<LiveReview> {
   return getJson<LiveReview>(`/api/review?date=${encodeURIComponent(date)}`);
 }
@@ -173,6 +186,91 @@ export async function fetchLiveStock(code: string): Promise<import('./types').St
     })),
     price_adjustment: stock.price_adjustment,
   };
+}
+
+interface LiveScreenOptions {
+  meta: LiveMeta;
+  unavailable: string[];
+}
+
+interface LiveScreenResult {
+  meta: LiveMeta;
+  rows: {
+    code: string;
+    name: string | null;
+    price: number;
+    chg_pct: number;
+    turnover_pct: number | null;
+    amount: number;
+    ladder: number;
+    limit_20: number;
+    industry: string | null;
+    mcap: number | null;
+  }[];
+  excluded: Record<string, number>;
+}
+
+function liveMeta(meta: LiveMeta): import('./types').DataMeta {
+  return {
+    as_of: meta.as_of,
+    updated_at: meta.updated_at,
+    snapshot: meta.snapshot_id,
+    status: {
+      level: meta.level as import('./types').DataStatusLevel,
+      failed_sources: meta.failed_sources,
+    },
+    coverage: {
+      total: meta.coverage?.instruments ?? 0,
+      pct: meta.coverage?.pct ?? null,
+    },
+  };
+}
+
+export async function fetchLiveScreenOptions(): Promise<import('./types').ScreenOptions> {
+  const payload = await getJson<LiveScreenOptions>('/api/screen/options');
+  return {
+    meta: liveMeta(payload.meta),
+    // Only the fields the backend can actually filter on; unavailable ones are listed
+    // in the banner instead of appearing as options that silently do nothing.
+    fields: [
+      { id: 'chg_pct', label: '涨跌幅', unit: '%' },
+      { id: 'ladder', label: '连板数', unit: '板' },
+      { id: 'turnover_pct', label: '换手率', unit: '%' },
+      { id: 'amount', label: '成交额', unit: '元' },
+      { id: 'limit_20', label: '近 20 日涨停', unit: '次' },
+    ],
+    ops: [
+      { id: 'gte', label: '≥' },
+      { id: 'lte', label: '≤' },
+      { id: 'eq', label: '=' },
+    ],
+    max_conditions: 6,
+    unavailable: payload.unavailable,
+  };
+}
+
+export async function runLiveScreen(
+  conditions: import('./types').ScreenCondition[],
+): Promise<import('./types').ScreenResult> {
+  const payload = await postJson<LiveScreenResult>('/api/screen', { conditions });
+  return {
+    meta: liveMeta(payload.meta),
+    ran_at: payload.meta.updated_at,
+    elapsed_ms: 0,
+    excluded: payload.excluded,
+    rows: payload.rows.map((row) => ({
+      code: row.code,
+      name: row.name,
+      industry: row.industry,
+      price: row.price,
+      chg_pct: row.chg_pct,
+      turnover_pct: row.turnover_pct,
+      ladder: row.ladder,
+      limit_20: row.limit_20,
+      amount: row.amount,
+      mcap: row.mcap,
+    })),
+  } as unknown as import('./types').ScreenResult;
 }
 
 /** Blocks the backend cannot serve yet; the page must say so instead of showing zeros. */

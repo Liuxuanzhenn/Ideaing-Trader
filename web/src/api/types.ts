@@ -274,11 +274,14 @@ export interface ScreenOptions {
   fields: { id: ScreenField; label: string; unit: string }[];
   ops: { id: ScreenOp; label: string }[];
   max_conditions: number;
+  /** 后端无法计算的字段，只能说明不能静默忽略 */
+  unavailable?: string[];
 }
 
 export interface ScreenRow {
   code: string;
-  name: string;
+  /** 库里尚无名称，可能为 null */
+  name: string | null;
   industry: string | null;
   price: number;
   chg_pct: number;
@@ -296,6 +299,8 @@ export interface ScreenResult {
   rows: ScreenRow[];
   ran_at: string;
   elapsed_ms: number;
+  /** 过滤前被排除的行，例如 {"st": 170} */
+  excluded?: Record<string, number>;
 }
 
 /* ---------- 回测 ---------- */
