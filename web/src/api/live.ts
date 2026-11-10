@@ -39,6 +39,12 @@ interface LiveLadderRow {
   name: string | null;
 }
 
+interface LiveMarket {
+  amount: number | null;
+  promotion: { level: number; base: number; promoted: number }[];
+  prev_limit: { samples: number; median_pct: number | null; up_ratio: number | null } | null;
+}
+
 interface LiveSeries {
   dates: string[];
   sealed_up: number[];
@@ -61,6 +67,7 @@ export interface LiveReview {
   indices: LiveIndex[];
   excluded: Record<string, number>;
   series?: LiveSeries;
+  market?: LiveMarket;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -318,12 +325,23 @@ export function toPageReview(review: LiveReview): Review {
       seal_rate: review.limits.seal_rate,
     },
     market: {
-      amount: null,
+      amount: review.market?.amount ?? null,
       new_high_63: null,
       new_low_63: null,
-      prev_limit: null,
+      prev_limit: review.market?.prev_limit
+        ? {
+            median_pct: review.market.prev_limit.median_pct,
+            up_ratio: review.market.prev_limit.up_ratio,
+            samples: review.market.prev_limit.samples,
+          }
+        : null,
     },
-    promotion: [],
+    promotion: (review.market?.promotion ?? []).map((step) => ({
+      level: step.level,
+      base: step.base,
+      promoted: step.promoted,
+      rate: step.base ? step.promoted / step.base : null,
+    })),
     prev: null,
     series: {
       dates: live?.dates ?? [],

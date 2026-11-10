@@ -263,8 +263,14 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
               <span className="card-title">连板天梯</span>
               <span className="card-sub">
                 最高 {levelKeys[0] ?? '—'} 板 · {data.ladder.length} 只 · 昨涨停今中位{' '}
-                <b className={market.prev_limit?.median_pct == null ? '' : toneOf(market.prev_limit.median_pct)}>{market.prev_limit?.median_pct == null ? '—' : pct(market.prev_limit.median_pct, 1)}</b> · 翻红{' '}
-                {market.prev_limit?.up_ratio === null || market.prev_limit?.up_ratio === undefined ? '—' : `${(market.prev_limit.up_ratio * 100).toFixed(0)}%`}
+                <b className={market.prev_limit?.median_pct == null ? '' : toneOf(market.prev_limit.median_pct)}>
+                  {market.prev_limit?.median_pct == null ? '—' : pct(market.prev_limit.median_pct, 1)}
+                </b>{' '}
+                · 翻红{' '}
+                {market.prev_limit?.up_ratio == null
+                  ? '—'
+                  : `${(market.prev_limit.up_ratio * 100).toFixed(0)}%`}
+                {market.prev_limit ? ` · 样本 ${market.prev_limit.samples}` : ''}
                 {data.promotion.length > 0 ? ' · 晋级率 ' : ''}
                 {data.promotion.map((step) => (
                   <em key={step.level} style={{ fontStyle: 'normal', marginLeft: 8 }}>
