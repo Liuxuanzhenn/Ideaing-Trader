@@ -374,7 +374,7 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
     <div className="card">
       <div className="card-head">
         <span className="card-title">观察池</span>
-        <span className="card-sub">{rows.length} 只 · 内存态，刷新后清空</span>
+        <span className="card-sub">{rows.length} 只 · 已保存到服务端</span>
       </div>
       {rows.length === 0 ? (
         <EmptyBlock title="观察池里的标的没有行情" description="这些标的当日没有行情数据。" />
@@ -401,7 +401,7 @@ function WatchlistView({ client, portfolio, onOpenStock, onRemoveWatch }: Props)
                 >
                   <td>
                     <div className="stock-cell">
-                      <span className="n">{stock.name ?? stock.code}</span>
+                      <span className="n">{stock.name ?? '—'}</span>
                       <span className="c">{stock.code}</span>
                     </div>
                   </td>

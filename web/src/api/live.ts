@@ -164,6 +164,15 @@ interface LiveStock {
   concepts: string[];
 }
 
+/**
+ * 观察池批量取行情。后端只提供单只端点，这里并发逐个取；
+ * 单只取不到（停牌/退市/未知代码）就丢掉那一行，不让整张表变成错误页。
+ */
+export async function fetchLiveStocks(codes: string[]): Promise<import('./types').Stock[]> {
+  const results = await Promise.allSettled(codes.map((code) => fetchLiveStock(code)));
+  return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+}
+
 export async function fetchLiveStock(code: string): Promise<import('./types').Stock> {
   const stock = await getJson<LiveStock>(`/api/stocks/${encodeURIComponent(code)}`);
   return {
