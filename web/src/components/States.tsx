@@ -51,6 +51,17 @@ export function PartialBanner({ meta }: { meta: DataMeta }) {
 }
 
 export function ErrorBlock({ error, onRetry }: { error?: ApiError; onRetry: () => void }) {
+  // 功能还没接后端不是「请求失败」：不显示重试和技术错误码，免得用户反复点一个必然失败的操作
+  if (error?.code === 'NOT_IMPLEMENTED') {
+    return (
+      <div className="error-block">
+        <strong>功能尚未接入</strong>
+        <p className="small" style={{ marginTop: 6, color: 'var(--muted)' }}>
+          {error.message}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="error-block">
       <strong>数据请求失败</strong>

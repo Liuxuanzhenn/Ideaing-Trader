@@ -307,6 +307,17 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
       </div>
 
       {(() => {
+        if (news.phase === 'error') {
+          return (
+            <div className="card section">
+              <div className="card-head">
+                <span className="card-title">相关资讯</span>
+                <span className="card-sub">尚未接入</span>
+              </div>
+              <div className="card-note">{news.error?.message ?? '资讯尚未接入真实接口'}</div>
+            </div>
+          );
+        }
         const related = (news.data?.items ?? []).filter((item) => item.codes.includes(data.code)).slice(0, 3);
         if (related.length === 0) return null;
         return (

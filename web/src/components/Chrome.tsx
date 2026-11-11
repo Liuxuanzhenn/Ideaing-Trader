@@ -1,7 +1,15 @@
 import { DEMO_LABELS, DEMO_STATES } from '../lib/demo';
 import type { DemoState } from '../lib/demo';
 
-export function Ribbon() {
+export function Ribbon({ real }: { real: boolean }) {
+  if (real) {
+    return (
+      <div className="ribbon" role="note">
+        <strong>真实接口数据 · 开发环境</strong>
+        行情、复盘、筛选、回测来自后端快照；资讯、任务、Agent 尚未接入
+      </div>
+    );
+  }
   return (
     <div className="ribbon" role="note">
       <strong>示例数据 · 开发态</strong>

@@ -159,6 +159,7 @@ function TaskPreview({
   onOpenResult: (taskId: string) => void;
 }) {
   const [logs, setLogs] = useState<string[] | null>(null);
+  const [logError, setLogError] = useState<string | null>(null);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
   const openLogs = async () => {
@@ -167,9 +168,13 @@ function TaskPreview({
       return;
     }
     setLoadingLogs(true);
+    setLogError(null);
     try {
       const data = await client.getTaskLogs(task.id);
       setLogs(data.lines);
+    } catch (err) {
+      // 未接入/取数失败都要落地成一行说明，不能让 promise 悬空
+      setLogError(err instanceof Error ? err.message : '任务日志读取失败');
     } finally {
       setLoadingLogs(false);
     }
@@ -217,6 +222,7 @@ function TaskPreview({
       </div>
 
       {logs ? <pre className="log-box">{logs.join('\n')}</pre> : null}
+      {logError ? <div className="small muted" style={{ marginTop: 8 }}>{logError}</div> : null}
     </div>
   );
 }

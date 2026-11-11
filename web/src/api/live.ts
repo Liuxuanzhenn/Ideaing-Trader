@@ -1,5 +1,6 @@
 import type { Review } from './types';
 import { defaultBacktestRange } from '../lib/format';
+import { settleStocks } from '../lib/settle';
 
 /**
  * Response of GET /api/review. Kept separate from the page view model on purpose:
@@ -170,7 +171,7 @@ interface LiveStock {
  */
 export async function fetchLiveStocks(codes: string[]): Promise<import('./types').Stock[]> {
   const results = await Promise.allSettled(codes.map((code) => fetchLiveStock(code)));
-  return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+  return settleStocks(results);
 }
 
 export async function fetchLiveStock(code: string): Promise<import('./types').Stock> {

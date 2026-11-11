@@ -158,7 +158,7 @@ export default function App() {
 
   return (
     <>
-      <Ribbon />
+      <Ribbon real={demo === 'ok'} />
       <Topbar status={status} ctxOpen={ctxOpen} onToggleContext={() => setCtxOpen((open) => !open)} />
       <DevBar state={demo} onChange={changeDemo} />
 
