@@ -133,7 +133,8 @@ export async function fetchLiveStatus(): Promise<import('./types').ServiceStatus
     connection: 'online',
     as_of: snapshotDate(status.snapshot_id),
     updated_at: status.updated_at,
-    coverage: { total: 0, pct: null },
+    // 后端 /api/data-status 不回报覆盖数，缺值就是 null，不填 0
+    coverage: { total: null, pct: null },
     level: 'ok',
   };
 }
@@ -288,7 +289,8 @@ export async function runLiveScreen(
   return {
     meta: liveMeta(payload.meta),
     ran_at: payload.meta.updated_at,
-    elapsed_ms: 0,
+    // 后端不回报耗时，缺值就是 null，不假装跑了 0ms
+    elapsed_ms: null,
     excluded: payload.excluded,
     rows: payload.rows.map((row) => ({
       code: row.code,
@@ -348,7 +350,7 @@ export interface LiveBacktestOptions {
 
 export async function fetchLiveBacktestOptions(): Promise<import('./types').BacktestOptions> {
   const payload = await getJson<LiveBacktestOptions>('/api/backtests/options');
-  const latest = payload.latest_session ?? '';
+  const latest = payload.latest_session ?? ''; // missing-ok: 表单默认值，空串表示未选交易日
   return {
     meta: liveMeta({
       ...(payload as unknown as { meta?: LiveMeta }).meta,
@@ -420,11 +422,11 @@ export async function submitLiveBacktest(form: import('./types').BacktestForm): 
 
 function toBacktestResult(report: LiveBacktestReport): import('./types').BacktestResult {
   const base = report.equity.length ? report.equity[0][1] : report.starting_capital;
-  const equity = report.equity.map(([, value]) => (base > 0 ? (value / base) * 100 : 0));
+  const equity = report.equity.map(([, value]) => (base > 0 ? (value / base) * 100 : 0)); // missing-ok: 除零保护
   let peak = -Infinity;
   const drawdown = equity.map((value) => {
     peak = Math.max(peak, value);
-    return peak > 0 ? -((peak - value) / peak) * 100 : 0;
+    return peak > 0 ? -((peak - value) / peak) * 100 : 0; // missing-ok: 除零保护
   });
   const pctOf = (value: number | null) => (value === null ? null : value * 100);
   return {
@@ -463,7 +465,7 @@ function toBacktestResult(report: LiveBacktestReport): import('./types').Backtes
       snapshot: report.meta.snapshot_id,
       strategy: report.params.strategy_label,
       params_hash: `${report.params.max_positions}仓/${report.params.holding_days}日`,
-      seed: 0,
+      seed: null,
       range: `${report.params.start}..${report.params.end}`,
       benchmark: report.benchmark_return === null ? '无指数数据' : '沪深300',
       pool: '全市场',

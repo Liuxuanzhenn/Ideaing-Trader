@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:missing": "node scripts/check-missing-values.mjs"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",

@@ -168,7 +168,7 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
         <div className="card-head">
           <span className="card-title">筛选结果</span>
           <span className="card-sub">
-            {result ? `命中 ${rows.length} 只 · 运行 ${result.ran_at} · ${result.elapsed_ms}ms` : '尚未运行'}
+            {result ? `命中 ${rows.length} 只 · 运行 ${result.ran_at}${result.elapsed_ms === null ? '' : ` · ${result.elapsed_ms}ms`}` : '尚未运行'}
           </span>
         </div>
 

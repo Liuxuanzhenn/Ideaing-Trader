@@ -267,7 +267,9 @@ export function StockChart({
       <div className="kline-legend">
         <span>MA5</span><span>MA10</span><span>MA20</span><span>MA60</span>
         <span>{IND_LABEL[indicator]}</span>
-        <span className="kline-note">指标为展示层计算，非后端权威值</span>
+        <span className="kline-note">
+          {period === 'day' ? '指标为展示层计算，非后端权威值' : `周/月按连续 ${period === 'week' ? 5 : 20} 个交易日近似，非自然周月`}
+        </span>
       </div>
     </div>
   );

@@ -298,7 +298,8 @@ export interface ScreenResult {
   meta: DataMeta;
   rows: ScreenRow[];
   ran_at: string;
-  elapsed_ms: number;
+  /** 后端不回报耗时，缺值就是 null，页面不显示 */
+  elapsed_ms: number | null;
   /** 过滤前被排除的行，例如 {"st": 170} */
   excluded?: Record<string, number>;
 }
@@ -394,7 +395,8 @@ export interface BacktestResult {
     snapshot: string;
     strategy: string;
     params_hash: string;
-    seed: number;
+    /** 后端不回报随机种子，缺值就是 null */
+    seed: number | null;
     range: string;
     benchmark: string;
     pool: string;
