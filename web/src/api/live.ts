@@ -409,11 +409,6 @@ export async function fetchLiveBacktestOptions(): Promise<import('./types').Back
 const backtestRuns = new Map<string, LiveBacktestReport>();
 let backtestSeq = 0;
 
-export function getBacktestRun(): { id: string; report: LiveBacktestReport } | null {
-  const last = [...backtestRuns.entries()].pop();
-  return last ? { id: last[0], report: last[1] } : null;
-}
-
 export async function submitLiveBacktest(form: import('./types').BacktestForm): Promise<import('./types').TaskItem> {
   const report = await postJson<LiveBacktestReport>('/api/backtests', {
     strategy: form.strategy_id,
