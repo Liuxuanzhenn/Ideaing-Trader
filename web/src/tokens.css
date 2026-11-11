@@ -1,0 +1,40 @@
+/* 设计 token —— 逐值取自 prototype/styles.css 的 :root，未做配色调整 */
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #08080a;
+  --bg-rail: rgba(18, 18, 22, .55);
+  --panel: rgba(255, 255, 255, .05);
+  --panel-2: rgba(255, 255, 255, .08);
+  --panel-3: rgba(255, 255, 255, .12);
+  --line: rgba(255, 255, 255, .10);
+  --line-strong: rgba(255, 255, 255, .18);
+  --text: #f5f5f5;
+  --muted: #b8b8b8;
+  --muted-2: #909090;
+  --ink: #171717;
+  --accent: #f0f0f0;
+  --up: #e05a6d;
+  --down: #2fa37a;
+  --warn: #d4a300;
+  --danger: #e05a6d;
+  --ok: #2fa37a;
+  --mock: #b8b8b8;
+  --mock-dim: #8a8a8a;
+  --info: #b8b8b8;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-xs: 3px;
+  --mono: "SF Mono", SFMono-Regular, ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --hairline: #ffffff0f;
+  --surface: rgba(255, 255, 255, .045);
+  --surface-2: rgba(255, 255, 255, .07);
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}

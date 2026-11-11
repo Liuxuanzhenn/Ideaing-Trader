@@ -1,0 +1,411 @@
+import { useCallback } from 'react';
+import type { ApiClient } from '../api/client';
+import type { Review } from '../api/types';
+import { useAsync } from '../lib/useAsync';
+import { EmptyBlock, ErrorBlock, PartialBanner, ReviewSkeleton, StaleBanner, StatusChip } from '../components/States';
+import { Spark } from '../components/charts';
+import { fmt, fmtDate, fmtDateTime, pct, toneOf } from '../lib/format';
+
+interface Props {
+  client: ApiClient;
+  /** 由 getServiceStatus().as_of 推出的交易日；null = 状态未就绪，先不发请求 */
+  date: string | null;
+  /** 状态接口不可用、退回自然日时为 true */
+  dateFallback?: boolean;
+  selectedCode?: string | null;
+  onSelectStock?: (code: string) => void;
+  onOpenStock?: (code: string) => void;
+}
+
+const pending = <T,>(): Promise<T> => new Promise<T>(() => {});
+
+/** 没有历史序列时留一句说明，避免用户把空图当成"当天没有数据"。 */
+function SeriesNote() {
+  return <div className="spark-wrap spark-empty">无历史序列</div>;
+}
+
+function amountText(value: number | null): string {
+  if (value === null || Number.isNaN(value)) return '—';
+  if (value >= 1e8) return `${(value / 1e8).toFixed(0)} 亿`;
+  return `${value.toFixed(0)} 元`;
+}
+
+function DeltaChip({ value, unit = 'int' }: { value: number | null; unit?: 'int' | 'pt' | 'yi' }) {
+  if (value === null || Number.isNaN(value)) return <span className="delta flat">—</span>;
+  const tone = value > 0 ? 'up' : value < 0 ? 'down' : 'flat';
+  const arrow = value > 0 ? '▲' : value < 0 ? '▼' : '·';
+  const abs = Math.abs(value);
+  const text = unit === 'pt' ? `${abs.toFixed(1)}pt` : unit === 'yi' ? `${abs.toFixed(2)} 万亿` : abs.toFixed(0);
+  return <span className={`delta ${tone}`}>{arrow} {text}</span>;
+}
+
+export function ReviewPage({ client, date, dateFallback = false, selectedCode = null, onSelectStock, onOpenStock }: Props) {
+  const load = useCallback(() => (date ? client.getReview(date) : pending<Review>()), [client, date]);
+  const review = useAsync(load);
+
+  if (review.phase === 'loading') {
+    return (
+      <>
+        <div className="view-head">
+          <div>
+            <h2 className="view-title">盘后复盘</h2>
+            <div className="view-sub">{date ? '正在读取数据…' : '正在读取当前交易日…'}</div>
+          </div>
+        </div>
+        <ReviewSkeleton />
+      </>
+    );
+  }
+
+  if (review.phase === 'error') {
+    return (
+      <>
+        <div className="view-head">
+          <div>
+            <h2 className="view-title">盘后复盘</h2>
+            <div className="view-sub">数据请求失败</div>
+          </div>
+        </div>
+        <ErrorBlock error={review.error} onRetry={review.retry} />
+      </>
+    );
+  }
+
+  const data = review.data!;
+  const { meta, breadth, limit, market, prev, series } = data;
+  const breadthTotal = breadth.up + breadth.flat + breadth.down;
+  const share = (value: number) => (breadthTotal ? (value / breadthTotal) * 100 : 0);
+  const sealPct = limit.seal_rate === null ? null : limit.seal_rate * 100;
+  const prevSealPct = prev?.seal_rate == null ? null : prev.seal_rate * 100;
+  const count = (value: number | null) => (value === null ? '—' : fmt(value, 0));
+
+  const levels = new Map<number, typeof data.ladder>();
+  for (const row of data.ladder) {
+    if (!levels.has(row.ladder)) levels.set(row.ladder, []);
+    levels.get(row.ladder)!.push(row);
+  }
+  const levelKeys = [...levels.keys()].sort((a, b) => b - a);
+
+  const industryCount = new Map<string, number>();
+  for (const row of data.ladder) {
+    const key = row.industry ?? '未分类';
+    industryCount.set(key, (industryCount.get(key) ?? 0) + 1);
+  }
+  const industries = [...industryCount.entries()].sort((a, b) => b[1] - a[1]);
+
+  return (
+    <>
+      <div className="view-head">
+        <div>
+          <h2 className="view-title">
+            盘后复盘 · {fmtDate(meta.as_of)}
+            <StatusChip level={meta.status.level} />
+          </h2>
+          <div className="view-sub">
+            更新 {fmtDateTime(meta.updated_at)} · 覆盖率 {meta.coverage.pct === null ? '—' : `${meta.coverage.pct}%`}
+            · 快照 <span title={meta.snapshot}>{meta.snapshot.slice(0, 42)}…</span>
+          </div>
+        </div>
+      </div>
+
+      {dateFallback ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div><strong>交易日未知</strong>：已退回自然日 {date} 请求，结果可能为空或过期。</div>
+        </div>
+      ) : null}
+      {meta.status.level === 'stale' ? <StaleBanner meta={meta} /> : null}
+      {meta.status.level === 'partial' ? <PartialBanner meta={meta} /> : null}
+      {/* Live data lacks sector and flow blocks; empty cards would read as "nothing
+          happened today", so the gap is named instead. */}
+      {data.is_trading_day && (data.sectors.length === 0 || data.flows.inflow.length === 0) ? (
+        <div className="card section">
+          <div className="card-note">
+            板块表现、资金流、资讯尚未接入后端
+            <span title={meta.snapshot}> · 快照 {meta.snapshot.slice(0, 18)}…</span>
+          </div>
+        </div>
+      ) : null}
+
+      {data.is_trading_day && Object.keys(data.excluded).length > 0 ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div>
+            <strong>统计范围已说明</strong>：{Object.entries(data.excluded).map(([key, value]) => `${key} ${value} 条`).join(' · ')}。
+            这些行未参与市场宽度和涨跌停统计。
+          </div>
+        </div>
+      ) : null}
+      {data.is_trading_day && data.limit.out_of_band > 0 ? (
+        <div className="banner banner-warn" role="status">
+          <span aria-hidden="true">△</span>
+          <div><strong>涨跌停统计有越界数据</strong>：{data.limit.out_of_band} 条未计入封板/跌停统计。</div>
+        </div>
+      ) : null}
+
+      {!data.is_trading_day ? (
+        <div className="card section">
+          <EmptyBlock
+            title="当日没有复盘数据"
+            description="该日期不是交易日，或数据尚未产出。"
+            children={<button className="btn" onClick={review.retry}>重新加载</button>}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="tile-grid section">
+            {data.indices.map((index, i) => (
+              <div className="tile" key={index.code}>
+                <div className="k">{index.name}</div>
+                <div className={`v ${toneOf(index.chg_pct)}`}>{fmt(index.close)}</div>
+                <div className={`s ${toneOf(index.chg_pct)}`}>{pct(index.chg_pct)}</div>
+                {series.indices[i]?.values.length ? (
+                  <Spark values={series.indices[i].values} tone="var(--muted)" />
+                ) : (
+                  <SeriesNote />
+                )}
+              </div>
+            ))}
+
+            <div className="tile">
+              <div className="k">市场宽度</div>
+              <div className="v">
+                {fmt(breadth.up, 0)}
+                <small>/ {fmt(breadth.down, 0)}</small>
+              </div>
+              <div className="s">红盘率 {breadthTotal ? ((breadth.up / breadthTotal) * 100).toFixed(0) : 0}%</div>
+              <div className="breadth-mini" aria-label="上涨 / 平盘 / 下跌家数比例">
+                <i style={{ width: `${share(breadth.up)}%`, background: 'var(--up)' }} />
+                <i style={{ width: `${share(breadth.flat)}%`, background: '#6e6e6e' }} />
+                <i style={{ width: `${share(breadth.down)}%`, background: 'var(--down)' }} />
+              </div>
+            </div>
+
+            <div className="tile">
+              <div className="k">涨停</div>
+              <div className="v up">{count(limit.sealed_up)}</div>
+              <DeltaChip value={prev ? (limit.sealed_up ?? 0) - prev.sealed_up : null} />
+              {series.sealed_up.length ? <Spark values={series.sealed_up} kind="bar" tone="var(--up)" /> : <SeriesNote />}
+            </div>
+
+            <div className="tile">
+              <div className="k">跌停</div>
+              <div className="v down">{count(limit.sealed_down)}</div>
+              <DeltaChip value={prev && limit.sealed_down !== null ? limit.sealed_down - (prev.sealed_down ?? 0) : null} />
+              {series.sealed_down.length ? <Spark values={series.sealed_down} kind="bar" tone="var(--down)" /> : <SeriesNote />}
+            </div>
+
+            <div className="tile">
+              <div className="k">炸板</div>
+              <div className="v">{count(limit.broken_up)}</div>
+              <DeltaChip value={prev && limit.broken_up !== null ? limit.broken_up - (prev.broken_up ?? 0) : null} />
+              {series.broken_up.length ? <Spark values={series.broken_up} kind="bar" tone="var(--muted-2)" /> : <SeriesNote />}
+            </div>
+
+            <div className="tile">
+              <div className="k">封板率</div>
+              <div className="v">{sealPct === null ? '—' : `${sealPct.toFixed(1)}%`}</div>
+              <DeltaChip value={sealPct !== null && prevSealPct !== null ? sealPct - prevSealPct : null} unit="pt" />
+              {series.seal_rate.length ? (
+                <Spark values={series.seal_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+              ) : (
+                <SeriesNote />
+              )}
+            </div>
+
+            <div className="tile">
+              <div className="k">最高板</div>
+              <div className="v">{levelKeys[0] ?? 0}<small>板</small></div>
+              <div className="s">昨日 {series.max_ladder[series.max_ladder.length - 2] ?? '—'} 板</div>
+              {series.max_ladder.length ? <Spark values={series.max_ladder} kind="bar" tone="var(--text)" /> : <SeriesNote />}
+            </div>
+
+            <div className="tile">
+              <div className="k">连板家数</div>
+              <div className="v">{data.ladder.filter((r) => r.ladder >= 2).length}<small>只</small></div>
+              <div className="s">含 2 板及以上</div>
+              {series.ladder_count.length ? <Spark values={series.ladder_count} kind="bar" tone="var(--muted-2)" /> : <SeriesNote />}
+            </div>
+
+            <div className="tile">
+              <div className="k">晋级率</div>
+              <div className="v">
+                {data.promotion[0]?.rate == null ? '—' : `${(data.promotion[0].rate * 100).toFixed(0)}%`}
+              </div>
+              <div className="s">首板 → 二板</div>
+              {series.promotion_rate.length ? (
+                <Spark values={series.promotion_rate.map((v) => (v === null ? null : v * 100))} tone="var(--muted)" />
+              ) : (
+                <SeriesNote />
+              )}
+            </div>
+
+            <div className="tile">
+              <div className="k">两市成交</div>
+              <div className="v">{amountText(market.amount)}</div>
+              <DeltaChip value={prev && market.amount !== null ? (market.amount - prev.amount) / 1e12 : null} unit="yi" />
+              {series.amount.length ? <Spark values={series.amount.map((v) => v / 1e12)} tone="var(--muted)" /> : <SeriesNote />}
+            </div>
+
+            <div className="tile">
+              <div className="k">新高 / 新低</div>
+              <div className="v">
+                {market.new_high_63 === null ? '—' : market.new_high_63}
+                <small>/ {market.new_low_63 === null ? '—' : market.new_low_63}</small>
+              </div>
+              <div className="s">63 日</div>
+              {series.new_high_63.length ? <Spark values={series.new_high_63} tone="var(--muted)" /> : <SeriesNote />}
+            </div>
+          </div>
+
+          <div className="card section ladder-card">
+            <div className="card-head">
+              <span className="card-title">连板天梯</span>
+              <span className="card-sub">
+                最高 {levelKeys[0] ?? '—'} 板 · {data.ladder.length} 只 · 昨涨停今中位{' '}
+                <b className={market.prev_limit?.median_pct == null ? '' : toneOf(market.prev_limit.median_pct)}>
+                  {market.prev_limit?.median_pct == null ? '—' : pct(market.prev_limit.median_pct, 1)}
+                </b>{' '}
+                · 翻红{' '}
+                {market.prev_limit?.up_ratio == null
+                  ? '—'
+                  : `${(market.prev_limit.up_ratio * 100).toFixed(0)}%`}
+                {market.prev_limit ? ` · 样本 ${market.prev_limit.samples}` : ''}
+                {data.promotion.length > 0 ? ' · 晋级率 ' : ''}
+                {data.promotion.map((step) => (
+                  <em key={step.level} style={{ fontStyle: 'normal', marginLeft: 8 }}>
+                    {step.level}→{step.level + 1} {step.rate === null ? '—' : `${(step.rate * 100).toFixed(0)}%`}
+                  </em>
+                ))}
+              </span>
+            </div>
+            {levelKeys.length === 0 ? (
+              <div className="small muted">今日没有涨停股</div>
+            ) : (
+              <>
+                <div className="ladder-rows">
+                  {levelKeys.map((level) => {
+                    const rows = levels.get(level)!;
+                    return (
+                      <div className="ladder-row" key={level}>
+                        <span className={`lvl ${level >= 4 ? 'lvl-hot' : ''}`}>{level} 板</span>
+                        <span className="cnt">×{rows.length}</span>
+                        <span className="names">
+                          {rows.map((row) => (
+                            <button
+                              key={row.code}
+                              className={`ladder-chip ${selectedCode === row.code ? 'selected' : ''}`}
+                              tabIndex={0}
+                              title={row.industry ?? '行业未分类'}
+                              onClick={() => onSelectStock?.(row.code)}
+                              onDoubleClick={() => onOpenStock?.(row.code)}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  onOpenStock?.(row.code);
+                                }
+                              }}
+                            >
+                              {row.name}
+                              {row.is_one_word ? <span className="ind">一字</span> : null}
+                              {row.seal_time === null && row.industry === null ? <span className="ind">{row.code}</span> : null}
+                              {row.industry ? <span className="ind">{row.industry}</span> : null}
+                            </button>
+                          ))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="industry-strip">
+                  <span className="istrip-label">行业分布</span>
+                  {industries.map(([name, n]) => (
+                    <span className="ind-chip" key={name}>
+                      {name}
+                      <b>{n}</b>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="split section">
+            <div className="card">
+              <div className="card-head">
+                <span className="card-title">板块</span>
+                <span className="card-sub">按涨跌幅</span>
+              </div>
+              <div className="table-wrap">
+                <table className="data sectors">
+                  <thead>
+                    <tr>
+                      <th>板块</th>
+                      <th className="num">涨跌</th>
+                      <th className="num">涨停</th>
+                      <th>领涨</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...data.sectors]
+                      .sort((a, b) => b.chg_pct - a.chg_pct)
+                      .map((sector) => (
+                        <tr key={sector.name}>
+                          <td>{sector.name}</td>
+                          <td className={`num ${toneOf(sector.chg_pct)}`}>{pct(sector.chg_pct)}</td>
+                          <td className="num">{sector.limit_up || '—'}</td>
+                          <td>
+                            <div className="leaders">
+                              {sector.leaders.slice(0, 2).map((leader) => (
+                                <button
+                                  className="link-chip"
+                                  key={leader.code}
+                                  onClick={() => onOpenStock?.(leader.code)}
+                                  tabIndex={0}
+                                >
+                                  {leader.name}
+                                  <span className={toneOf(leader.chg_pct)}>{pct(leader.chg_pct)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-head">
+                <span className="card-title">个股资金</span>
+                <span className="card-sub">净流入 / 净流出</span>
+              </div>
+              <div className="flow-grid">
+                {([
+                  ['inflow', '流入'],
+                  ['outflow', '流出'],
+                ] as const).map(([key, label]) => (
+                  <div className="flow-col" key={key}>
+                    <div className="flow-head">{label}</div>
+                    {data.flows[key].map((row) => (
+                      <button className="flow-row" key={row.code} onClick={() => onOpenStock?.(row.code)}>
+                        <span className="fname">{row.name}</span>
+                        <span className={`num ${row.net_in > 0 ? 'up' : 'down'}`}>
+                          {row.net_in > 0 ? '+' : ''}
+                          {(row.net_in / 1e8).toFixed(2)} 亿
+                        </span>
+                        <span className={`num ${toneOf(row.chg_pct)}`}>{pct(row.chg_pct)}</span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
