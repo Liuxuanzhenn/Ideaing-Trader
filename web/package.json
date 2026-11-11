@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "check:missing": "node scripts/check-missing-values.mjs",
-    "check:indicators": "node --experimental-strip-types scripts/check-indicators.ts"
+    "check:indicators": "node --experimental-strip-types scripts/check-indicators.ts",
+    "check:defaults": "node --experimental-strip-types scripts/check-defaults.ts"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",

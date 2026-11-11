@@ -46,3 +46,16 @@ export function shares(value: number): string {
   if (value >= 1e4) return `${(value / 1e4).toFixed(1)} 万股`;
   return `${value} 股`;
 }
+
+/**
+ * 回测默认区间：后端按交易日切片，`from === to` 只有 1 个 session 会被 422 拒绝
+ * （"need at least 2"），所以默认回看 30 个日历日，保证至少两个交易日。
+ * latest 为空或非法时返回空串，交给调用方处理。
+ */
+export function defaultBacktestRange(latest: string): { from: string; to: string } {
+  if (!latest) return { from: '', to: '' };
+  const end = new Date(`${latest}T00:00:00Z`);
+  if (Number.isNaN(end.getTime())) return { from: '', to: '' };
+  const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+  return { from: start.toISOString().slice(0, 10), to: latest };
+}

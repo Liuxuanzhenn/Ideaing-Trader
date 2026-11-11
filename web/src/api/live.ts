@@ -1,4 +1,5 @@
 import type { Review } from './types';
+import { defaultBacktestRange } from '../lib/format';
 
 /**
  * Response of GET /api/review. Kept separate from the page view model on purpose:
@@ -380,8 +381,8 @@ export async function fetchLiveBacktestOptions(): Promise<import('./types').Back
     defaults: {
       strategy_id: 'first_board',
       pool: 'all',
-      from: latest,
-      to: latest,
+      ...defaultBacktestRange(latest),
+      // missing-ok: 表单默认值，空串表示未选，不用当前日期冒充
       capital: 1000000,
       max_pos: 10,
       fee_rate: 0.0003,

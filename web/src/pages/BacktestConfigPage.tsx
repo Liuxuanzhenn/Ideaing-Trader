@@ -56,7 +56,8 @@ export function BacktestConfigPage({ client, onSubmitted }: Props) {
       const task = await client.submitBacktest(form);
       onSubmitted(task.id);
     } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError('UNKNOWN', '提交失败'));
+      // 适配层已经给出中文原因，这里别再把它换成含糊的「提交失败」
+      setError(err instanceof ApiError ? err : new ApiError('UNKNOWN', err instanceof Error ? err.message : '提交失败'));
     } finally {
       setSubmitting(false);
     }
