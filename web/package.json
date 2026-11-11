@@ -1,0 +1,30 @@
+{
+  "name": "quant-workbench-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "check:missing": "node scripts/check-missing-values.mjs",
+    "check:indicators": "node --experimental-strip-types scripts/check-indicators.ts",
+    "check:defaults": "node --experimental-strip-types scripts/check-defaults.ts",
+    "check:adapters": "node --experimental-strip-types scripts/check-adapters.ts"
+  },
+  "dependencies": {
+    "lightweight-charts": "^5.2.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6"
+  }
+}
