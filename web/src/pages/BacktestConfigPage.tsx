@@ -71,7 +71,7 @@ export function BacktestConfigPage({ client, onSubmitted }: Props) {
             日频回测
             <StatusChip level={data.meta.status.level} />
           </h2>
-          <div className="view-sub">单策略基础回测 · 信号与成交分离 · 基准沪深 300（示例）</div>
+          <div className="view-sub">日频 · 信号收盘确认，次日开盘成交 · 基准沪深 300</div>
         </div>
       </div>
 

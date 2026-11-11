@@ -55,7 +55,7 @@ export function AgentPage({ client, onGoTasks }: { client: ApiClient; onGoTasks:
             内置 Agent
             <StatusChip level={data.meta.status.level} />
           </h2>
-          <div className="view-sub">通过受控工具查询与提交任务，不直接访问数据库 · 示例会话</div>
+          <div className="view-sub">受控工具查询与任务提交</div>
         </div>
         <div className="view-actions">
           <button className="btn" onClick={onGoTasks}>任务中心</button>

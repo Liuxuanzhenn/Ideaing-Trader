@@ -142,7 +142,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
           </h2>
           <div className="view-sub">
             {data.board} · {STATUS_TEXT[data.trade_status]} · {data.industry ?? '行业未分类'} ·{' '}
-            {data.concepts.slice(0, 3).join(' · ')} · 示例数据
+            {data.concepts.slice(0, 3).join(' · ')}
           </div>
           <div className="quote-line">
             <span className={`quote-price ${data.chg_pct === null ? 'flat' : toneOf(data.chg_pct)}`}>
@@ -185,7 +185,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
           <div className="card section">
             <div className="card-head">
               <span className="card-title">关键统计</span>
-              <span className="card-sub">区间与量比按日线计算 · 展示层</span>
+              <span className="card-sub">展示层计算</span>
             </div>
 
             <div className="stat4">

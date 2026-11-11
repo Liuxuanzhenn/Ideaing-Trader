@@ -28,8 +28,9 @@
   --mock: #b8b8b8;
   --mock-dim: #8a8a8a;
   --info: #b8b8b8;
-  --radius: 16px;
-  --radius-sm: 12px;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-xs: 3px;
   --mono: "SF Mono", SFMono-Regular, ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
   --ease: cubic-bezier(.2, 0, 0, 1);
   --hairline: #ffffff0f;
