@@ -121,8 +121,8 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
       {data.is_trading_day && (data.sectors.length === 0 || data.flows.inflow.length === 0) ? (
         <div className="card section">
           <div className="card-note">
-            真实数据已接入：指数行情、市场宽度、涨跌停、连板梯队。以下尚未接入后端，故不显示：板块表现、资金流、资讯。
-            <br />快照 <span title={meta.snapshot}>{meta.snapshot.slice(0, 42)}…</span>
+            板块表现、资金流、资讯尚未接入后端
+            <span title={meta.snapshot}> · 快照 {meta.snapshot.slice(0, 18)}…</span>
           </div>
         </div>
       ) : null}

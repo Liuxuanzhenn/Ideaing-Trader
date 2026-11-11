@@ -51,7 +51,7 @@ export function NewsPage({ client, onOpenStock }: { client: ApiClient; onOpenSto
             <StatusChip level={data.meta.status.level} />
           </h2>
           <div className="view-sub">
-            {rows.length} 条 · 数据 {data.meta.as_of.slice(0, 10)} · 示例数据
+            {rows.length} 条 · 数据 {data.meta.as_of.slice(0, 10)}
           </div>
         </div>
         <div className="view-actions">
