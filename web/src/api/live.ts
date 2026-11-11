@@ -344,6 +344,9 @@ interface LiveBacktestReport {
 }
 
 export interface LiveBacktestOptions {
+  // 扁平结构：没有 meta，也没有 level
+  snapshot_id: string;
+  updated_at: string;
   strategies: { id: string; label: string }[];
   latest_session: string | null;
 }
@@ -352,9 +355,16 @@ export async function fetchLiveBacktestOptions(): Promise<import('./types').Back
   const payload = await getJson<LiveBacktestOptions>('/api/backtests/options');
   const latest = payload.latest_session ?? ''; // missing-ok: 表单默认值，空串表示未选交易日
   return {
+    // 这个端点回的是扁平字段（snapshot_id / updated_at / strategies / latest_session），
+    // 没有 meta 对象；接口返回 200 即代表数据可用，所以按 ok 自己拼一个，不要凭空造 undefined level。
     meta: liveMeta({
-      ...(payload as unknown as { meta?: LiveMeta }).meta,
-    } as LiveMeta),
+      as_of: snapshotDate(payload.snapshot_id),
+      updated_at: payload.updated_at,
+      snapshot_id: payload.snapshot_id,
+      level: 'ok',
+      failed_sources: [],
+      coverage: null,
+    }),
     strategies: payload.strategies.map((item) => ({
       id: item.id as import('./types').BtStrategy['id'],
       label: item.label,

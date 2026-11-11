@@ -10,7 +10,8 @@ export function StatusChip({ level }: { level: DataStatusLevel }) {
     error: { cls: 'status-bad', text: '数据不可用' },
     empty: { cls: '', text: '无数据' },
   };
-  const { cls, text } = map[level];
+  // 后端新增或改名的 level 不该把整页打白：兜底成一个中性 chip
+  const { cls, text } = map[level] ?? { cls: '', text: '状态未知' };
   const dot = level === 'ok' ? 'dot dot-ok' : level === 'partial' ? 'dot' : 'dot';
   return (
     <span className={`status-chip ${cls}`.trim()}>
