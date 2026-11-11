@@ -3,12 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "check:missing": "node scripts/check-missing-values.mjs",
-    "check:indicators": "node scripts/check-indicators.ts"
+    "check:indicators": "node --experimental-strip-types scripts/check-indicators.ts"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",
