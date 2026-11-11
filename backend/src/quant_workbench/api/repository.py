@@ -68,6 +68,7 @@ LIMIT ?
 
 SYMBOL_BOARD_SQL = "SELECT board FROM instruments WHERE symbol = ?"
 
+RESOLVE_EXACT_SYMBOL_SQL = "SELECT symbol FROM instruments WHERE symbol = ?"
 RESOLVE_SYMBOL_SQL = "SELECT symbol FROM instruments WHERE right(symbol, 6) = ? ORDER BY symbol"
 
 LATEST_SESSION_SQL = "SELECT max(trade_date) FROM bars"
@@ -196,7 +197,12 @@ def resolve_symbol(conn: Connection, code: str) -> str:
     """Accept `SH600000` or `600000`; a bare six-digit code must be unambiguous."""
     text = code.strip().upper()
     if len(text) == 8:
-        return text
+        if text[:2] not in {"SH", "SZ"} or not text[2:].isdigit():
+            raise ValueError(f"invalid instrument code: {code}")
+        rows = conn.execute(RESOLVE_EXACT_SYMBOL_SQL, [text]).fetchall()
+        if not rows:
+            raise KeyError(code)
+        return str(rows[0][0])
     if len(text) != 6 or not text.isdigit():
         raise ValueError(f"invalid instrument code: {code}")
     rows = conn.execute(RESOLVE_SYMBOL_SQL, [text]).fetchall()

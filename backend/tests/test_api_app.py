@@ -49,6 +49,8 @@ class FakeConnection:
                 rows = [("snapshot-abc", "2026-11-10T15:54:17+00:00")]
             else:
                 rows = self.quality
+        elif "FROM instruments WHERE symbol = ?" in query:
+            rows = [row for row in self.instruments if row[0] == parameters[0]]
         elif "FROM instruments" in query:
             rows = self.instruments
         elif "DISTINCT trade_date" in query:
@@ -123,6 +125,47 @@ class ReviewEndpointTests(unittest.TestCase):
         response = client_for(FakeConnection([tuple(broken)])).get(f"/api/review?date={DAY}")
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["detail"]["code"], "DATA_ERROR")
+
+
+class PortfolioEndpointTests(unittest.TestCase):
+    def test_unknown_symbol_is_rejected_without_persisting(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from quant_workbench.api.portfolio_store import PortfolioStore
+
+        with tempfile.TemporaryDirectory() as temp:
+            store = PortfolioStore(Path(temp) / "portfolio.json")
+            client = TestClient(
+                create_app(connect=lambda: FakeConnection([]), allow_anonymous=True, portfolio=store)
+            )
+            response = client.post("/api/portfolio/watchlist", json={"code": "SH999999"})
+            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.json()["detail"]["code"], "UNKNOWN_SYMBOL")
+            self.assertEqual(store.list(), {"watchlist": [], "basket": []})
+            self.assertFalse(store.path.exists())
+
+    def test_existing_symbol_add_is_idempotent_and_remove_persists(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from quant_workbench.api.portfolio_store import PortfolioStore
+
+        with tempfile.TemporaryDirectory() as temp:
+            store = PortfolioStore(Path(temp) / "portfolio.json")
+            client = TestClient(
+                create_app(connect=lambda: FakeConnection([]), allow_anonymous=True, portfolio=store)
+            )
+            first = client.post("/api/portfolio/watchlist", json={"code": "SH600000"})
+            duplicate = client.post("/api/portfolio/watchlist", json={"code": "600000"})
+            self.assertEqual(first.status_code, 200)
+            self.assertEqual(duplicate.status_code, 200)
+            self.assertEqual(duplicate.json()["watchlist"], ["SH600000"])
+            reopened = PortfolioStore(store.path)
+            self.assertEqual(reopened.list()["watchlist"], ["SH600000"])
+            removed = client.delete("/api/portfolio/watchlist/SH600000")
+            self.assertEqual(removed.status_code, 200)
+            self.assertEqual(PortfolioStore(store.path).list()["watchlist"], [])
 
 
 class DataStatusTests(unittest.TestCase):

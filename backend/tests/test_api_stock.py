@@ -29,6 +29,8 @@ class FakeConnection:
         self.calls.append((query, params))
         if "FROM limit_streaks" in query:
             rows = [self.streak]
+        elif "FROM instruments WHERE symbol = ?" in query:
+            rows = [match for match in self.matches if match[0] == params[0]]
         elif "FROM instruments WHERE right(symbol" in query:
             rows = self.matches
         elif "FROM instruments" in query:
@@ -67,10 +69,12 @@ def history(count, *, last=DAY, symbol="SH600000", start_close=10.0):
 
 
 class ResolveSymbolTests(unittest.TestCase):
-    def test_eight_character_symbol_is_used_as_is(self):
-        conn = FakeConnection([])
+    def test_eight_character_symbol_must_exist_in_instruments(self):
+        conn = FakeConnection([], matches=[("SH600000",)])
         self.assertEqual(resolve_symbol(conn, "sh600000"), "SH600000")
-        self.assertEqual(conn.calls, [])
+        self.assertEqual(len(conn.calls), 1)
+        with self.assertRaises(KeyError):
+            resolve_symbol(FakeConnection([], matches=[]), "SH999999")
 
     def test_six_digits_resolve_through_instruments(self):
         conn = FakeConnection([], matches=[("SZ000001",)])
@@ -89,6 +93,8 @@ class ResolveSymbolTests(unittest.TestCase):
     def test_malformed_code_is_rejected(self):
         with self.assertRaises(ValueError):
             resolve_symbol(FakeConnection([]), "60000")
+        with self.assertRaises(ValueError):
+            resolve_symbol(FakeConnection([]), "XY600000")
 
 
 class BuildStockTests(unittest.TestCase):
