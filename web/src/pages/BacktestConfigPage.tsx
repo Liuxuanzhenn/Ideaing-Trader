@@ -136,7 +136,7 @@ export function BacktestConfigPage({ client, onSubmitted }: Props) {
           <button className="btn btn-primary" onClick={submit} disabled={submitting || offline}>
             {submitting ? '提交中…' : '提交回测'}
           </button>
-          <span className="small muted">提交后进入任务中心，不阻塞页面查询 · 初始资金 {yuan(form.capital)}</span>
+          <span className="small muted">提交后直接查看回测结果 · 初始资金 {yuan(form.capital)}</span>
         </div>
 
         {error ? (

@@ -201,7 +201,10 @@ export default function App() {
           ) : null}
 
           {nav.route === 'backtest' && nav.view === 'config' ? (
-            <BacktestConfigPage client={client} onSubmitted={() => go('tasks')} />
+            <BacktestConfigPage
+              client={client}
+              onSubmitted={(taskId) => go('backtest', { view: 'result', taskId })}
+            />
           ) : null}
 
           {nav.route === 'backtest' && nav.view === 'result' ? (
