@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createMockClient } from './api/mock';
+import { notWiredClient } from './api/not-wired';
 import {
   fetchLiveReview,
   fetchLiveScreenOptions,
@@ -60,8 +61,8 @@ export default function App() {
   const client: ApiClient = useMemo(() => {
     const mock = createMockClient(demo);
     if (demo !== 'ok') return mock;
-    return {
-      ...mock,
+    // 真实模式：不再用 ...mock 打底，未接后端的方法显式报错，避免假数据被当成真数据
+    const live = {
       getServiceStatus: fetchLiveStatus,
       getStock: fetchLiveStock,
       getStocks: fetchLiveStocks,
@@ -75,10 +76,14 @@ export default function App() {
       removeWatchlist: removeLiveWatchlist,
       addBasket: addLiveBasket,
       getReview: async (date: string) => {
-        const live: LiveReview = await fetchLiveReview(date);
-        return toPageReview(live);
+        const liveReview: LiveReview = await fetchLiveReview(date);
+        return toPageReview(liveReview);
       },
-    };
+    } satisfies Partial<ApiClient>;
+    const notWired = notWiredClient();
+    // 显式标注 ApiClient：漏接或漏分类任何方法都会编译失败，不需要额外断言函数
+    const client: ApiClient = { ...live, ...notWired };
+    return client;
   }, [demo]);
 
   const loadStatus = useCallback(() => client.getServiceStatus(), [client]);
