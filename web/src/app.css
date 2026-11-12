@@ -216,7 +216,7 @@ b, strong { font-weight: 520; }
 
 /* 页面通用 */
 .view-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.view-title { font-size: 20px; font-weight: 520; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.view-title { font-size: 1.25rem; font-weight: 520; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .view-sub { margin-top: 6px; font-size: .875rem; color: var(--muted); line-height: 1.6; }
 .view-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
@@ -266,13 +266,13 @@ b, strong { font-weight: 520; }
 .index-item { padding: 12px 16px; border-right: 1px solid rgba(255, 255, 255, .07); }
 .index-item:last-child { border-right: 0; }
 .index-name { font-size: .8125rem; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
-.index-value { font-size: 19px; font-weight: 520; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.index-value { font-size: 1.1875rem; font-weight: 520; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .index-chg { font-size: var(--fs-135); font-variant-numeric: tabular-nums; }
 
 .market-state .ms-row { display: flex; align-items: baseline; gap: 40px; flex-wrap: wrap; }
 .ms-item { display: flex; align-items: baseline; gap: 8px; }
 .ms-item .k { font-size: .8125rem; color: var(--muted-2); }
-.ms-item .v { font-size: 20px; font-weight: 520; font-variant-numeric: tabular-nums; }
+.ms-item .v { font-size: 1.25rem; font-weight: 520; font-variant-numeric: tabular-nums; }
 .breadth-bar { width: 100%; height: 8px; border-radius: 4px; overflow: hidden; display: flex; background: var(--panel-3); margin: 12px 0 8px; }
 .breadth-bar > i { display: block; height: 100%; }
 .ms-legend { display: flex; gap: 20px; font-size: var(--fs-135); color: var(--muted-2); flex-wrap: wrap; }
@@ -329,7 +329,7 @@ table.data .num { text-align: right; }
 }
 
 /* 个股 / 筛选 / 回测 / 资讯 / Agent 页面补充 */
-.stat-line { font-size: 20px; font-weight: 520; font-variant-numeric: tabular-nums; margin-top: 3px; }
+.stat-line { font-size: 1.25rem; font-weight: 520; font-variant-numeric: tabular-nums; margin-top: 3px; }
 .chart-svg { width: 100%; height: auto; display: block; }
 /* 保留 px：SVG 内文字处在 viewBox 用户坐标系，字号跟随 rem 会与图形比例脱钩 */
 .chart-svg text { font-size: 11px; fill: var(--muted-2); }
@@ -365,7 +365,7 @@ table.data .num { text-align: right; }
 .metric-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .metric-card { padding: 14px 16px; }
 .metric-card .k { font-size: var(--fs-125); color: var(--muted-2); }
-.metric-card .v { font-size: 20px; font-weight: 520; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.metric-card .v { font-size: 1.25rem; font-weight: 520; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .metric-card .s { font-size: var(--fs-125); color: var(--muted-2); margin-top: 2px; }
 
 .news-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, .06); }
@@ -470,7 +470,7 @@ table.data tbody tr[tabindex] { cursor: pointer; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
 }
 .tile .k { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tile .v { font-size: 24px; font-weight: 560; letter-spacing: -.4px; font-variant-numeric: tabular-nums; line-height: 1.15; color: var(--text); }
+.tile .v { font-size: 1.5rem; font-weight: 560; letter-spacing: -.4px; font-variant-numeric: tabular-nums; line-height: 1.15; color: var(--text); }
 .tile .v small { font-size: var(--fs-125); font-weight: 420; color: var(--muted); margin-left: 3px; }
 .tile .s { font-size: .75rem; color: var(--muted-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .delta {
@@ -484,12 +484,14 @@ table.data tbody tr[tabindex] { cursor: pointer; }
 .tile .delta.down { color: var(--down); background: rgba(47, 163, 122, .16); }
 .tile .spark-wrap { position: relative; margin-top: auto; width: 100%; height: 47px; }
 .tile .spark-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* 保留 px：固定 47px 高的缩略图内、叠在曲线上的极值标签，跟随 rem 会压到图形 */
 .tile .spark-wrap .spark-hi,
 .tile .spark-wrap .spark-lo {
   position: absolute; font-size: 10px; line-height: 1;
   color: var(--muted-2); font-variant-numeric: tabular-nums;
   background: rgba(10, 10, 12, .55); padding: 1px 2px; border-radius: 3px;
 }
+/* 保留 px：与上面的极值标签同处 47px 格子，字号必须一致，不单独跟随系统字号 */
 .tile .spark-empty {
   display: flex; align-items: center; justify-content: flex-end;
   font-size: 10px; color: var(--muted-2);
@@ -624,7 +626,7 @@ table.data.sectors .link-chip { font-size: .8125rem; }
 
 /* 个股头部行情行 */
 .quote-line { display: flex; align-items: baseline; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
-.quote-price { font-size: 30px; font-weight: 560; font-variant-numeric: tabular-nums; letter-spacing: -.6px; line-height: 1.1; }
+.quote-price { font-size: 1.875rem; font-weight: 560; font-variant-numeric: tabular-nums; letter-spacing: -.6px; line-height: 1.1; }
 .quote-chg { font-size: .9375rem; font-variant-numeric: tabular-nums; }
 .quote-meta { font-size: .8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -644,7 +646,7 @@ table.data.sectors .link-chip { font-size: .8125rem; }
 .range-row { display: flex; gap: 34px; flex-wrap: wrap; }
 .range-cell { display: flex; flex-direction: column; gap: 2px; }
 .range-cell .k { font-size: var(--fs-125); color: var(--muted); }
-.range-cell .v { font-size: 17px; font-weight: 520; font-variant-numeric: tabular-nums; color: var(--text); }
+.range-cell .v { font-size: 1.0625rem; font-weight: 520; font-variant-numeric: tabular-nums; color: var(--text); }
 .range-cell .v.up { color: var(--up); }
 .range-cell .v.down { color: var(--down); }
 .stock-news { padding: 10px 0; }
@@ -661,7 +663,7 @@ table.data.sectors .link-chip { font-size: .8125rem; }
 }
 .mtile.span2 { grid-column: span 2; aspect-ratio: 2 / 1; }
 .mtile .k { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mtile .v { margin-top: auto; font-size: 18px; font-weight: 540; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--text); }
+.mtile .v { margin-top: auto; font-size: 1.125rem; font-weight: 540; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--text); }
 .mtile .v small { font-size: .75rem; font-weight: 420; color: var(--muted); margin-left: 2px; }
 .mtile .v.up { color: var(--up); }
 .mtile .v.down { color: var(--down); }
@@ -676,7 +678,7 @@ table.data.sectors .link-chip { font-size: .8125rem; }
 .stat4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 .stat4 .stat { min-width: 0; }
 .stat4 .k { font-size: var(--fs-125); color: var(--muted); }
-.stat4 .v { font-size: 21px; font-weight: 540; margin-top: 3px; font-variant-numeric: tabular-nums; color: var(--text); }
+.stat4 .v { font-size: 1.3125rem; font-weight: 540; margin-top: 3px; font-variant-numeric: tabular-nums; color: var(--text); }
 .stat4 .v.up { color: var(--up); }
 .stat4 .v.down { color: var(--down); }
 .stat4 .v .small { font-size: .8125rem; font-weight: 420; }
