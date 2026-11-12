@@ -31,6 +31,11 @@
   --radius: 6px;
   --radius-sm: 4px;
   --radius-xs: 3px;
+  /* 半像素档位：×16 精确还原，5 位小数只在这里出现 */
+  --fs-125: .78125rem;
+  --fs-115: .71875rem;
+  --fs-135: .84375rem;
+  --fs-145: .90625rem;
   --mono: "SF Mono", SFMono-Regular, ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
   --ease: cubic-bezier(.2, 0, 0, 1);
   --hairline: #ffffff0f;

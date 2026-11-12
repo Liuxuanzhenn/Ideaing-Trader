@@ -152,7 +152,7 @@ export function BacktestConfigPage({ client, onSubmitted }: Props) {
 
       <div className="card section">
         <div className="card-head"><span className="card-title">交易假设</span></div>
-        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, color: 'var(--muted-2)', lineHeight: 1.9 }}>
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 'var(--fs-135)', color: 'var(--muted-2)', lineHeight: 1.9 }}>
           {data.assumptions.map((item) => <li key={item}>{item}</li>)}
         </ul>
       </div>

@@ -56,6 +56,7 @@ export function StockChart({
     if (!boxRef.current) return undefined;
     const chart = createChart(boxRef.current, {
       height: 520,
+      // 保留 px：图表库按 CSS px 在 canvas 内排布，跟随根字号放大会溢出画布
       layout: { background: { color: 'transparent' }, textColor: MUTED, fontSize: 11, panes: { separatorColor: '#2a2a30' } },
       grid: { vertLines: { color: 'rgba(255,255,255,.04)' }, horzLines: { color: 'rgba(255,255,255,.04)' } },
       rightPriceScale: { borderColor: '#2a2a30' },

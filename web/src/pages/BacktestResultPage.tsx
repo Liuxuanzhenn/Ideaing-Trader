@@ -220,7 +220,7 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
 
       <div className="card section">
         <div className="card-head"><span className="card-title">可复现信息</span></div>
-        <dl className="ctx-kv" style={{ fontSize: 13.5 }}>
+        <dl className="ctx-kv" style={{ fontSize: 'var(--fs-135)' }}>
           <dt>数据快照</dt><dd className="num">{data.run_meta.snapshot}</dd>
           <dt>策略</dt><dd className="num">{data.run_meta.strategy}</dd>
           <dt>股票池</dt><dd>{data.run_meta.pool}</dd>
