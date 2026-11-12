@@ -246,3 +246,50 @@ class EnvironmentConfigTests(unittest.TestCase):
             with mock.patch.dict("os.environ", {"QW_API_TOKEN": ""}, clear=False):
                 client = TestClient(create_app(connect=lambda: FakeConnection([bar_row()])))
                 self.assertEqual(client.get(f"/api/review?date={DAY}").status_code, 200)
+
+
+class _StockConnection:
+    """Just enough rows for one stock detail call, shaped like the real queries."""
+
+    def __init__(self, symbol: str = "SH600000", day: str = "2026-11-06") -> None:
+        self.symbol = symbol
+        self.day = day
+        self.closed = False
+
+    def execute(self, query, parameters=None):
+        params = list(parameters or [])
+        if "FROM limit_streaks" in query:
+            rows = [(0, 0)]
+        elif "SELECT board FROM instruments" in query:
+            rows = [("Main",)]
+        elif "SELECT symbol FROM instruments WHERE symbol = ?" in query:
+            rows = [(self.symbol,)]
+        elif "max(trade_date)" in query:
+            rows = [(self.day,)]
+        elif "FROM data_quality" in query:
+            rows = [("snapshot-abc", "2026-11-10T15:54:17+00:00")]
+        elif "FROM bars" in query:
+            rows = [(self.symbol, self.day, 10.0, 11.0, 9.9, 11.0, 10.0, 1000.0, 1.0e7, 1.5, 0, True)]
+        else:
+            rows = []
+
+        class _Result:
+            def fetchall(_inner):
+                return rows
+
+        return _Result()
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class StockEndpointMissingSourceTests(unittest.TestCase):
+    """Fields with no data source behind them must be null, never an empty list."""
+
+    def test_concepts_is_null_in_the_response(self) -> None:
+        client = TestClient(create_app(connect=lambda: _StockConnection(), allow_anonymous=True))
+        response = client.get(f"/api/stocks/SH600000?date={DAY}")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertIn("concepts", body)
+        self.assertIsNone(body["concepts"])

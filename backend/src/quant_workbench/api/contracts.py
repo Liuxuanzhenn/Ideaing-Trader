@@ -300,9 +300,13 @@ class StockDetail:
     """One instrument as the UI needs it.
 
     `name` and `industry` come from the optional instruments_meta file; `concepts` and
-    `mcap` stay empty/None on purpose. `industry_status` carries the loader status
+    `mcap` stay None on purpose. `industry_status` carries the loader status
     (ok / empty_for_delisted / missing / missing_basic) and is None when no metadata
     file is configured, so an absent file is never reported as an absent source record.
+
+    `concepts` is None because no concept source is wired up at all. An empty tuple is
+    reserved for "queried, and this stock really has no concepts", which nothing can
+    claim yet.
     """
 
     meta: DataMeta
@@ -320,4 +324,4 @@ class StockDetail:
     price_adjustment: str
     industry: str | None = None
     industry_status: str | None = None
-    concepts: tuple[str, ...] = ()
+    concepts: tuple[str, ...] | None = None
