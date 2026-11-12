@@ -74,7 +74,7 @@ export function ContextPanel({
                     <span className="num muted small">{item.code}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, margin: '6px 0 2px' }}>
-                    <span className={`num ${item.chg_pct === null ? 'flat' : toneOf(item.chg_pct)}`} style={{ fontSize: 24 }}>
+                    <span className={`num ${item.chg_pct === null ? 'flat' : toneOf(item.chg_pct)}`} style={{ fontSize: '1.5rem' }}>
                       {item.price === null ? '—' : fmt(item.price)}
                     </span>
                     <span className={item.chg_pct === null ? 'flat' : toneOf(item.chg_pct)}>
