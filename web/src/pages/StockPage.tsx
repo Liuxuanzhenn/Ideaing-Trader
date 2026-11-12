@@ -5,6 +5,7 @@ import { useAsync } from '../lib/useAsync';
 import { StockChart, type KIndicator, type KPeriod } from '../components/StockChart';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
 import { conceptsText, fmt, industryLabel, pct, toneOf, yuan } from '../lib/format';
+import { BoardTags } from '../components/BoardTags';
 
 export type StockView = 'detail' | 'watchlist';
 
@@ -144,6 +145,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
             {data.board} · {STATUS_TEXT[data.trade_status]} · {industryLabel(data.industry, data.industry_status)}
             {conceptsText(data.concepts) ? ` · ${conceptsText(data.concepts)}` : ''}
           </div>
+          <BoardTags boards={data.boards} />
           <div className="quote-line">
             <span className={`quote-price ${data.chg_pct === null ? 'flat' : toneOf(data.chg_pct)}`}>
               {data.price === null ? '—' : fmt(data.price)}

@@ -272,6 +272,10 @@ function boardMembership(state: DemoState, code: string, industry: string | null
     { code: 'BKGN-HL', name: '华为链', type: 'concept' },
     { code: 'BKGN-SL', name: '算力', type: 'concept' },
     { code: 'BKGN-XC', name: '信创', type: 'concept' },
+    // 概念板块多，用来验证「默认 12 个 + 展开」
+    ...['数据中心', '液冷', '东数西算', '国产替代', '并购重组', '高送转', '央企改革', '预盈预增',
+      '物联网', '区块链', '网络安全', '云计算', '大数据', '智慧城市', '工业互联网', '边缘计算',
+      '超算', '芯片', '服务器', '光通信'].map((name, index) => ({ code: `BKGN-X${index}`, name, type: 'concept' })),
     { code: 'BKDY-HN', name: '湖南', type: 'region' },
     { code: 'BKDY-HD', name: '华东', type: 'region' },
     { code: 'BKFG-ZZ', name: '中证 500', type: 'style' },

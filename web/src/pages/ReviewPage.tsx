@@ -4,6 +4,8 @@ import type { Review } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, ReviewSkeleton, StaleBanner, StatusChip } from '../components/States';
 import { Spark } from '../components/charts';
+import { BoardsCard } from '../components/BoardsCard';
+import { DragonTigerCard } from '../components/DragonTigerCard';
 import { fmt, fmtDate, fmtDateTime, pct, toneOf } from '../lib/format';
 
 interface Props {
@@ -332,50 +334,7 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
           </div>
 
           <div className="split section">
-            <div className="card">
-              <div className="card-head">
-                <span className="card-title">板块</span>
-                <span className="card-sub">按涨跌幅</span>
-              </div>
-              <div className="table-wrap">
-                <table className="data sectors">
-                  <thead>
-                    <tr>
-                      <th>板块</th>
-                      <th className="num">涨跌</th>
-                      <th className="num">涨停</th>
-                      <th>领涨</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...data.sectors]
-                      .sort((a, b) => b.chg_pct - a.chg_pct)
-                      .map((sector) => (
-                        <tr key={sector.name}>
-                          <td>{sector.name}</td>
-                          <td className={`num ${toneOf(sector.chg_pct)}`}>{pct(sector.chg_pct)}</td>
-                          <td className="num">{sector.limit_up || '—'}</td>
-                          <td>
-                            <div className="leaders">
-                              {sector.leaders.slice(0, 2).map((leader) => (
-                                <button
-                                  className="link-chip"
-                                  key={leader.code}
-                                  onClick={() => onOpenStock?.(leader.code)}
-                                  tabIndex={0}
-                                >
-                                  {leader.name}
-                                  <span className={toneOf(leader.chg_pct)}>{pct(leader.chg_pct)}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <BoardsCard client={client} date={data.meta.as_of.slice(0, 10)} />
 
             <div className="card">
               <div className="card-head">
@@ -403,6 +362,10 @@ export function ReviewPage({ client, date, dateFallback = false, selectedCode = 
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="section">
+            <DragonTigerCard client={client} date={data.meta.as_of.slice(0, 10)} />
           </div>
         </>
       )}
