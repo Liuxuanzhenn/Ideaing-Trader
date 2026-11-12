@@ -164,7 +164,8 @@ interface LiveStock {
   industry: string | null;
   /** 旧后端没有这个字段，所以是可选的 */
   industry_status?: import('./types').IndustryStatus | null;
-  concepts: string[];
+  /** 旧后端可能没有该字段 */
+  concepts?: string[] | null;
 }
 
 /**
@@ -197,7 +198,7 @@ export async function fetchLiveStock(code: string): Promise<import('./types').St
     board: stock.board,
     industry: stock.industry,
     industry_status: stock.industry_status ?? null,
-    concepts: stock.concepts,
+    concepts: stock.concepts ?? null, // 缺失即未接入，不拿 [] 冒充「确实没有」
     trade_status: stock.trade_status,
     price: stock.price,
     chg_pct: stock.chg_pct,
