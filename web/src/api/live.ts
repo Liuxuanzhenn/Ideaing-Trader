@@ -522,9 +522,9 @@ interface LiveBoardList {
   }[];
 }
 
-/** 一次取全部板块类型（不传 type），前端按 type 过滤，切 tab 不重复请求 */
-export async function fetchLiveBoards(date: string): Promise<import('./types').BoardList> {
-  const payload = await getJson<LiveBoardList>(`/api/boards?date=${encodeURIComponent(date)}`);
+/** 只取当前类型：全量响应 240 KB、链路 4–6 KB/s，一次取四类会把首屏压到 40 秒以上 */
+export async function fetchLiveBoards(date: string, type: string): Promise<import('./types').BoardList> {
+  const payload = await getJson<LiveBoardList>(`/api/boards?date=${encodeURIComponent(date)}&type=${encodeURIComponent(type)}`);
   return {
     meta: {
       as_of: payload.meta.as_of,
@@ -550,7 +550,7 @@ export async function fetchLiveBoards(date: string): Promise<import('./types').B
 }
 
 interface LiveDragonTiger {
-  meta: { trade_date: string; total: number; excluded_bj: number; status: string };
+  meta: { trade_date: string; total: number; excluded_bj: number; status: string; updated_at?: string | null; snapshot_id?: string | null };
   rows: {
     trade_id: string; symbol: string | null; secucode: string; name: string | null; market: string | null;
     close: number | null; chg_pct: number | null; turnover_rate: number | null;
@@ -565,9 +565,9 @@ export async function fetchLiveDragonTiger(date: string): Promise<import('./type
   return {
     meta: {
       as_of: payload.meta.trade_date,
-      // 该端点不返回 updated_at/snapshot，缺就是 null，不编造
-      updated_at: null,
-      snapshot: null,
+      // 后端已补 updated_at/snapshot；旧版本没有就保持 null，不编造
+      updated_at: payload.meta.updated_at ?? null,
+      snapshot: payload.meta.snapshot_id ?? null,
       level: payload.meta.status === 'empty' ? 'empty' : 'ok',
     },
     rows: payload.rows,

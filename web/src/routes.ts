@@ -26,13 +26,15 @@ export interface Nav {
   code: string | null;
   /** 回测结果对应的任务号 */
   taskId: string | null;
+  /** 可选：覆盖复盘交易日（?date=YYYY-MM-DD），用于验收非交易日 */
+  date: string | null;
   /** 回测页的两个视图 */
   view: 'config' | 'result';
   /** 个股模块子视图：详情 / 观察池 */
   stockView: 'detail' | 'watchlist';
 }
 
-const DEFAULT_NAV: Nav = { route: 'review', code: null, taskId: null, view: 'config', stockView: 'detail' };
+const DEFAULT_NAV: Nav = { route: 'review', code: null, taskId: null, date: null, view: 'config', stockView: 'detail' };
 
 /** 便于演示/截图：?route=stock&code=002261、?route=backtest&view=result&task=T-1041 */
 export function readNav(): Nav {
@@ -43,6 +45,7 @@ export function readNav(): Nav {
     route,
     code: params.get('code'),
     taskId: params.get('task'),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date') : null,
     view: params.get('view') === 'result' ? 'result' : 'config',
     stockView: params.get('sv') === 'watchlist' ? 'watchlist' : 'detail',
   };
@@ -57,6 +60,7 @@ export function writeNav(nav: Nav): void {
   };
   setOrDelete('code', nav.code);
   setOrDelete('task', nav.taskId);
+  setOrDelete('date', nav.date);
   setOrDelete('view', nav.view === 'result' ? 'result' : null);
   setOrDelete('sv', nav.stockView === 'watchlist' ? 'watchlist' : null);
   window.history.replaceState(null, '', url);

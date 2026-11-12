@@ -125,7 +125,7 @@ export default function App() {
   }, [nav.route, selectedCode, selectedTaskId]);
 
   const go = (route: RouteId, patch: Partial<Nav> = {}) => {
-    const next: Nav = { route, code: null, taskId: null, view: 'config', stockView: 'detail', ...patch };
+    const next: Nav = { route, code: null, taskId: null, date: null, view: 'config', stockView: 'detail', ...patch };
     writeNav(next);
     setNav(next);
     if (next.code) setSelectedCode(next.code);
@@ -153,7 +153,8 @@ export default function App() {
   };
 
   const tradeDate = status.phase === 'ok' && status.data ? fmtDate(status.data.as_of) : null;
-  const reviewDate = tradeDate ?? (status.phase === 'error' ? naturalDay() : null);
+  // ?date= 可覆盖（验收非交易日用）；否则用快照 as_of，再退到自然日
+  const reviewDate = nav.date ?? tradeDate ?? (status.phase === 'error' ? naturalDay() : null);
   const dateFallback = status.phase === 'error';
 
   const runningCount = (tasks.data?.items ?? []).filter(

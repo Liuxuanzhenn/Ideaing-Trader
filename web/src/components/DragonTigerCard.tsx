@@ -18,7 +18,11 @@ export function DragonTigerCard({ client, date }: { client: ApiClient; date: str
       <div className="card-head">
         <span className="card-title">龙虎榜</span>
         <span className="card-sub">
-          {list.data ? `${list.data.rows.length} 条 · ${list.data.meta.as_of}` : ''}
+          {list.data
+            ? [ `${list.data.rows.length} 条 · ${list.data.meta.as_of}`, list.data.meta.updated_at ? `更新 ${list.data.meta.updated_at.slice(0, 16).replace('T', ' ')}` : null ]
+                .filter(Boolean)
+                .join(' · ')
+            : ''}
         </span>
       </div>
 
@@ -92,7 +96,7 @@ function DragonTigerTable({
                 <td className={`num ${row.net_amt === null ? 'flat' : toneOf(row.net_amt)}`}>
                   {row.net_amt === null ? '—' : yuan(row.net_amt)}
                 </td>
-                <td className="num muted">{row.deal_amt_ratio === null ? '—' : `${row.deal_amt_ratio}%`}</td>
+                <td className="num muted">{row.deal_amt_ratio === null ? '—' : `${row.deal_amt_ratio.toFixed(1)}%`}</td>
                 <td className="muted">{row.reason_text}</td>
               </tr>
             ))}

@@ -788,7 +788,7 @@ export function createMockClient(state: DemoState): ApiClient {
         return { task_id: taskId, lines };
       }, 200),
 
-    getBoards: () =>
+    getBoards: (_date, type) =>
       guard<import('./types').BoardList>(() => ({
         meta: {
           as_of: '2026-11-11',
@@ -796,7 +796,7 @@ export function createMockClient(state: DemoState): ApiClient {
           snapshot: 'snapshot-mock-0001',
           level: state === 'stale' ? 'stale' : state === 'partial' ? 'partial' : state === 'empty' ? 'empty' : 'ok',
         },
-        rows: boardRows(state),
+        rows: boardRows(state).filter((row) => row.type === type),
         status: state === 'empty' ? 'empty' : 'ok',
       }), 260),
 

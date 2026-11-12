@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../api/client';
 import type { BoardList, BoardRow, BoardType } from '../api/types';
 import { ApiError } from '../api/types';
-import { useAsync } from '../lib/useAsync';
 import { pct, toneOf } from '../lib/format';
 import { EmptyBlock, ErrorBlock, SkeletonRows } from './States';
 import { SortTh, sortRows, useSort } from './TableSort';
@@ -14,15 +13,72 @@ const TABS: { id: BoardType; label: string }[] = [
   { id: 'style', label: '风格' },
 ];
 
-/** 板块卡：一次请求取全部类型，切 tab 只做前端过滤，不重复请求 */
+type Entry =
+  | { phase: 'loading' }
+  | { phase: 'error'; error: ApiError; retry: () => void }
+  | { phase: 'ok'; data: BoardList };
+
+/**
+ * 板块卡：**按 tab 懒加载**。
+ * 全量响应 240 KB、链路 4–6 KB/s，一次取四类会把首屏压到 40 秒以上，
+ * 所以首次只取当前 tab，切 tab 再取，并缓存 date+type 结果；换日期清空缓存。
+ */
 export function BoardsCard({ client, date }: { client: ApiClient; date: string }) {
-  const load = useCallback(() => client.getBoards(date), [client, date]);
-  const boards = useAsync(load);
   const [tab, setTab] = useState<BoardType>('industry');
-  // 默认按等权涨跌降序；缺失值恒排最后由 sortRows 保证
+  const [entries, setEntries] = useState<Record<string, Entry>>({});
+  const cache = useRef<Record<string, Entry>>({});
   const { sort, toggle } = useSort('pct_chg_ew');
 
-  const level = boards.data?.meta.level ?? 'ok';
+  const keyOf = (type: BoardType) => `${date}|${type}`;
+
+  const load = useCallback(
+    (type: BoardType) => {
+      const key = `${date}|${type}`;
+      const cached = cache.current[key];
+      if (cached && cached.phase === 'ok') {
+        setEntries((prev) => ({ ...prev, [key]: cached }));
+        return;
+      }
+      setEntries((prev) => ({ ...prev, [key]: { phase: 'loading' } }));
+      client
+        .getBoards(date, type)
+        .then((data) => {
+          cache.current[key] = { phase: 'ok', data };
+          setEntries((prev) => ({ ...prev, [key]: { phase: 'ok', data } }));
+        })
+        .catch((err: unknown) => {
+          const entry: Entry = {
+            phase: 'error',
+            error:
+              err instanceof ApiError
+                ? err
+                : new ApiError('UNKNOWN', err instanceof Error ? err.message : '板块数据读取失败'),
+            retry: () => {
+              delete cache.current[key];
+              load(type);
+            },
+          };
+          setEntries((prev) => ({ ...prev, [key]: entry }));
+        });
+    },
+    [client, date],
+  );
+
+  // 换日期：清空缓存并重新取当前 tab
+  useEffect(() => {
+    cache.current = {};
+    setEntries({});
+    load(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
+
+  const selectTab = (next: BoardType) => {
+    setTab(next);
+    const key = keyOf(next);
+    if (!entries[key]) load(next);
+  };
+
+  const entry = entries[keyOf(tab)];
 
   return (
     <div className="card">
@@ -35,7 +91,7 @@ export function BoardsCard({ client, date }: { client: ApiClient; date: string }
               role="tab"
               aria-selected={tab === item.id}
               className={`seg-item ${tab === item.id ? 'active' : ''}`}
-              onClick={() => setTab(item.id)}
+              onClick={() => selectTab(item.id)}
             >
               {item.label}
             </button>
@@ -43,48 +99,38 @@ export function BoardsCard({ client, date }: { client: ApiClient; date: string }
         </div>
       </div>
 
-      <CardStateLine level={level} meta={boards.data?.meta ?? null} />
-
-      {boards.phase === 'loading' ? <SkeletonRows rows={6} /> : null}
-      {boards.phase === 'error' ? (
-        <ErrorBlock error={boards.error} onRetry={boards.retry} />
+      {entry?.phase === 'ok' ? <StateLine level={entry.data.meta.level} asOf={entry.data.meta.as_of} /> : null}
+      {!entry || entry.phase === 'loading' ? <SkeletonRows rows={6} /> : null}
+      {entry?.phase === 'error' ? (
+        <ErrorBlock error={entry.error} onRetry={entry.retry} />
       ) : null}
-      {boards.data ? <BoardsTable data={boards.data} tab={tab} sort={sort} onSort={toggle} /> : null}
+      {entry?.phase === 'ok' ? <BoardsTable data={entry.data} sort={sort} onSort={toggle} /> : null}
     </div>
   );
 }
 
 function BoardsTable({
   data,
-  tab,
   sort,
   onSort,
 }: {
   data: BoardList;
-  tab: BoardType;
   sort: ReturnType<typeof useSort>['sort'];
   onSort: (key: string) => void;
 }) {
-  const rows = sortRows(
-    data.rows.filter((row) => row.type === tab),
-    sort,
-    (row: BoardRow, key) => {
-      switch (key) {
-        case 'name': return row.name;
-        case 'pct_chg_ew': return row.pct_chg_ew;
-        case 'counts': return row.up_count;
-        case 'leader_name': return row.leader_name;
-        case 'valid_count': return row.valid_count;
-        default: return null;
-      }
-    },
-  );
+  const rows = sortRows(data.rows, sort, (row: BoardRow, key) => {
+    switch (key) {
+      case 'name': return row.name;
+      case 'pct_chg_ew': return row.pct_chg_ew;
+      case 'counts': return row.up_count;
+      case 'leader_name': return row.leader_name;
+      case 'valid_count': return row.valid_count;
+      default: return null;
+    }
+  });
 
   if (data.status === 'empty' || data.rows.length === 0) {
-    return <EmptyBlock title="当日无板块数据" description="后端返回 status=empty：该交易日没有板块聚合结果。" />;
-  }
-  if (rows.length === 0) {
-    return <EmptyBlock title="该类型当日无数据" description={`后端没有返回 ${TABS.find((t) => t.id === tab)?.label} 类板块。`} />;
+    return <EmptyBlock title="该分类当日无数据" description="后端返回 status=empty：该交易日这一类没有板块聚合结果。" />;
   }
 
   return (
@@ -121,25 +167,12 @@ function BoardsTable({
   );
 }
 
-/** stale / partial 用一行文字说明，不占整块横幅 */
-function CardStateLine({
-  level,
-  meta,
-}: {
-  level: 'ok' | 'empty' | 'partial' | 'stale' | 'error';
-  meta: { as_of: string; updated_at: string | null } | null;
-}) {
+function StateLine({ level, asOf }: { level: BoardList['meta']['level']; asOf: string }) {
   if (level === 'stale') {
-    return <div className="card-sub" style={{ marginBottom: 8 }}>缓存数据 · 已过期（{meta?.as_of ?? '—'}），不能视为当日行情</div>;
+    return <div className="card-sub" style={{ marginBottom: 8 }}>缓存数据 · 已过期（{asOf}），不能视为当日行情</div>;
   }
   if (level === 'partial') {
     return <div className="card-sub" style={{ marginBottom: 8 }}>部分缺失：部分板块没有有效成员或领涨股</div>;
   }
   return null;
 }
-
-export function isNotWired(error?: ApiError): boolean {
-  return error?.code === 'NOT_IMPLEMENTED';
-}
-
-export { useEffect };
