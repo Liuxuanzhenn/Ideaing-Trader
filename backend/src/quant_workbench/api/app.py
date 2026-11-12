@@ -15,6 +15,7 @@ from datetime import date
 from typing import Callable
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from .repository import Connection, fetch_latest_snapshot, fetch_quality_checks
@@ -54,6 +55,9 @@ def create_app(
         else os.environ.get("QW_ALLOW_ANONYMOUS") == "1"
     )
     app = FastAPI(title="Quant Workbench", version="0.1.0")
+    # /api/boards answers ~240 KB of JSON; the tunnel to this box runs at ~344 ms RTT, where
+    # that payload takes tens of seconds. gzip is built into starlette, so this costs nothing.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
     opener = connect or _duckdb_opener(DEFAULT_DB_PATH)
     lists = portfolio or PortfolioStore()
 
@@ -178,7 +182,8 @@ def create_app(
                      "excluded_bj": payload.excluded_bj, "status": payload.status,
                      # so a 龙虎榜 result can be traced back to the data snapshot it came from
                      "snapshot_id": payload.meta.snapshot_id,
-                     "updated_at": to_jsonable(updated_at)},
+                     "updated_at": to_jsonable(updated_at),
+                     "error": payload.error},
             "rows": to_jsonable(payload.rows)})
 
     @app.get("/api/backtests/options")

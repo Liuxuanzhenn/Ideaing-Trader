@@ -398,10 +398,18 @@ class DragonTigerRow:
 @dataclass(frozen=True, slots=True)
 class DragonTigerList:
     """Same slim-meta rule as BoardList: /api/dragon-tiger serialises
-    {trade_date, total, excluded_bj, status, snapshot_id, updated_at}, not a DataMeta."""
+    {trade_date, total, excluded_bj, status, snapshot_id, updated_at, error}, not a DataMeta.
+
+    `status` separates three facts that used to collapse into "empty":
+      ok            rows came back
+      empty         we collected that session and the source really had no 龙虎榜 rows
+      failed        the collector ran and failed (error carries why)
+      not_collected nobody ever tried that date — the absence is ours, not the market's
+    """
 
     meta: DataMeta
     rows: tuple[DragonTigerRow, ...]
     status: str = "ok"
     excluded_bj: int = 0
     """Rows dropped by the default v1 filter. Reported, never silently discarded."""
+    error: str | None = None
