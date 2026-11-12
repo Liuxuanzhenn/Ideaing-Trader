@@ -5,6 +5,7 @@ import { ApiError } from '../api/types';
 import { pct, toneOf } from '../lib/format';
 import { EmptyBlock, ErrorBlock, SkeletonRows } from './States';
 import { SortTh, sortRows, useSort } from './TableSort';
+import { createRequestGate } from '../lib/request-gate';
 
 const TABS: { id: BoardType; label: string }[] = [
   { id: 'industry', label: '行业' },
@@ -27,6 +28,8 @@ export function BoardsCard({ client, date }: { client: ApiClient; date: string }
   const [tab, setTab] = useState<BoardType>('industry');
   const [entries, setEntries] = useState<Record<string, Entry>>({});
   const cache = useRef<Record<string, Entry>>({});
+  const gate = useRef(createRequestGate()).current;
+  const inFlight = useRef<Record<string, AbortController>>({});
   const { sort, toggle } = useSort('pct_chg_ew');
 
   const keyOf = (type: BoardType) => `${date}|${type}`;
@@ -39,14 +42,22 @@ export function BoardsCard({ client, date }: { client: ApiClient; date: string }
         setEntries((prev) => ({ ...prev, [key]: cached }));
         return;
       }
+      // 同一 key 的上一次在途请求作废并取消，避免慢响应晚到覆盖
+      inFlight.current[key]?.abort();
+      const controller = new AbortController();
+      inFlight.current[key] = controller;
+      const token = gate.begin(key);
       setEntries((prev) => ({ ...prev, [key]: { phase: 'loading' } }));
       client
         .getBoards(date, type)
         .then((data) => {
+          // 过期响应：不是该 key 的最新一次请求，直接丢弃，不写 cache 也不写 state
+          if (!gate.isLatest(token)) return;
           cache.current[key] = { phase: 'ok', data };
           setEntries((prev) => ({ ...prev, [key]: { phase: 'ok', data } }));
         })
         .catch((err: unknown) => {
+          if (!gate.isLatest(token)) return;
           const entry: Entry = {
             phase: 'error',
             error:
@@ -67,6 +78,9 @@ export function BoardsCard({ client, date }: { client: ApiClient; date: string }
   // 换日期：清空缓存并重新取当前 tab
   useEffect(() => {
     cache.current = {};
+    gate.invalidateAll();
+    Object.values(inFlight.current).forEach((controller) => controller.abort());
+    inFlight.current = {};
     setEntries({});
     load(tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,7 +89,8 @@ export function BoardsCard({ client, date }: { client: ApiClient; date: string }
   const selectTab = (next: BoardType) => {
     setTab(next);
     const key = keyOf(next);
-    if (!entries[key]) load(next);
+    // 已缓存直接显示；否则发起请求（同 key 的在途请求会被新的替换）
+    if (!cache.current[key]) load(next);
   };
 
   const entry = entries[keyOf(tab)];
