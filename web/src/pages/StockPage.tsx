@@ -4,7 +4,7 @@ import type { Portfolio } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { StockChart, type KIndicator, type KPeriod } from '../components/StockChart';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
-import { fmt, pct, toneOf, yuan } from '../lib/format';
+import { fmt, industryLabel, pct, toneOf, yuan } from '../lib/format';
 
 export type StockView = 'detail' | 'watchlist';
 
@@ -141,7 +141,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
             <StatusChip level={data.meta.status.level} />
           </h2>
           <div className="view-sub">
-            {data.board} · {STATUS_TEXT[data.trade_status]} · {data.industry ?? '行业未分类'} ·{' '}
+            {data.board} · {STATUS_TEXT[data.trade_status]} · {industryLabel(data.industry, data.industry_status)} ·{' '}
             {data.concepts.slice(0, 3).join(' · ')}
           </div>
           <div className="quote-line">

@@ -172,7 +172,12 @@ class BacktestReport:
 
 @dataclass(frozen=True, slots=True)
 class ScreenRow:
-    """One match. `name`, `industry` and `mcap` stay None: the database has no such columns."""
+    """One match.
+
+    `name` and `industry` come from the optional instruments_meta file, `mcap` stays
+    None: the database has no such column. `industry_status` is None whenever metadata
+    is unavailable, so a missing file never reads as "the source has no record".
+    """
 
     code: str
     name: str | None
@@ -184,6 +189,7 @@ class ScreenRow:
     limit_20: int
     industry: str | None = None
     mcap: float | None = None
+    industry_status: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,8 +299,10 @@ class StockStats:
 class StockDetail:
     """One instrument as the UI needs it.
 
-    Fields the database cannot supply yet (`name`, `industry`, `concepts`, `mcap`)
-    stay None/empty on purpose: the page shows the code instead of inventing a label.
+    `name` and `industry` come from the optional instruments_meta file; `concepts` and
+    `mcap` stay empty/None on purpose. `industry_status` carries the loader status
+    (ok / empty_for_delisted / missing / missing_basic) and is None when no metadata
+    file is configured, so an absent file is never reported as an absent source record.
     """
 
     meta: DataMeta
@@ -311,4 +319,5 @@ class StockDetail:
     candles: tuple[Candle, ...]
     price_adjustment: str
     industry: str | None = None
+    industry_status: str | None = None
     concepts: tuple[str, ...] = ()
