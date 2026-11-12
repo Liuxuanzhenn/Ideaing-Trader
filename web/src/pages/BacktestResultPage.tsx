@@ -125,7 +125,7 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
         </div>
         <div className="card metric-card">
           <div className="k">参数哈希</div>
-          <div className="v" style={{ fontSize: 15 }}>{data.run_meta.params_hash}</div>
+          <div className="v" style={{ fontSize: '0.9375rem' }}>{data.run_meta.params_hash}</div>
           <div className="s">{data.run_meta.seed === null ? '未记录 seed' : `seed ${data.run_meta.seed}`}</div>
         </div>
       </div>
