@@ -122,6 +122,9 @@ class DragonTigerEndpointTests(unittest.TestCase):
         self.assertEqual(body["meta"]["total"], 1)
         self.assertEqual(body["meta"]["excluded_bj"], 1)
         self.assertEqual(body["rows"][0]["symbol"], "SZ000026")
+        # provenance must be traceable from this endpoint too
+        self.assertEqual(body["meta"]["snapshot_id"], SNAPSHOT)
+        self.assertEqual(body["meta"]["updated_at"], UPDATED)
 
     def test_exclude_bj_false_keeps_them(self):
         conn = FakeConnection(dragon_rows=[

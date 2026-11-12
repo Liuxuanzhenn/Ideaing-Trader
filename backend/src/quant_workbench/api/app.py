@@ -175,7 +175,10 @@ def create_app(
             conn.close()
         return JSONResponse(content={
             "meta": {"trade_date": trade_date.isoformat(), "total": len(payload.rows),
-                     "excluded_bj": payload.excluded_bj, "status": payload.status},
+                     "excluded_bj": payload.excluded_bj, "status": payload.status,
+                     # so a 龙虎榜 result can be traced back to the data snapshot it came from
+                     "snapshot_id": payload.meta.snapshot_id,
+                     "updated_at": to_jsonable(updated_at)},
             "rows": to_jsonable(payload.rows)})
 
     @app.get("/api/backtests/options")
