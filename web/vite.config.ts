@@ -43,6 +43,8 @@ export default defineConfig(({ command }) => {
     // who can reach it can use your credentials.
     host: '127.0.0.1',
     port: 5273,
+    // 端口被占用时直接失败，不要自动换端口：否则验证可能对着旧构建跑
+    strictPort: true,
     proxy,
   },
   // 生产构建预览：dist 是静态文件，但 /api 仍由这里的 dev server 进程代理，
@@ -50,6 +52,7 @@ export default defineConfig(({ command }) => {
   preview: {
     host: '127.0.0.1',
     port: 5274,
+    strictPort: true,
     proxy,
   },
   };
