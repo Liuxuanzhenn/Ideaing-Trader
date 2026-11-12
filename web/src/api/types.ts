@@ -227,6 +227,9 @@ export interface StockStats {
   max_ladder: number;
 }
 
+/** 行业分类的可用性：null 表示后端还没提供这个字段（旧 API） */
+export type IndustryStatus = 'ok' | 'empty_for_delisted' | 'missing' | 'missing_basic';
+
 export interface Stock {
   meta: DataMeta;
   code: string;
@@ -235,6 +238,8 @@ export interface Stock {
   board: string;
   /** 行业分类尚未验证，不可用时为 null */
   industry: string | null;
+  /** 行业字段的可用性；null = 后端尚未提供该字段（旧 API） */
+  industry_status: IndustryStatus | null;
   concepts: string[];
   trade_status: 'normal' | 'suspended' | 'st';
   /** 无成交时为 null，不用 0 冒充 */
@@ -283,6 +288,8 @@ export interface ScreenRow {
   /** 库里尚无名称，可能为 null */
   name: string | null;
   industry: string | null;
+  /** 行业字段的可用性；null = 后端尚未提供该字段（旧 API） */
+  industry_status: IndustryStatus | null;
   price: number;
   chg_pct: number;
   turnover_pct: number | null;

@@ -162,6 +162,8 @@ interface LiveStock {
   candles: { trade_date: string; open: number; high: number; low: number; close: number; volume: number }[];
   price_adjustment: 'raw' | 'adj';
   industry: string | null;
+  /** 旧后端没有这个字段，所以是可选的 */
+  industry_status?: import('./types').IndustryStatus | null;
   concepts: string[];
 }
 
@@ -194,6 +196,7 @@ export async function fetchLiveStock(code: string): Promise<import('./types').St
     name: stock.name,
     board: stock.board,
     industry: stock.industry,
+    industry_status: stock.industry_status ?? null,
     concepts: stock.concepts,
     trade_status: stock.trade_status,
     price: stock.price,
@@ -307,6 +310,8 @@ export async function runLiveScreen(
       code: row.code,
       name: row.name,
       industry: row.industry,
+      // 旧后端没有该字段：用可选链读，缺字段保持 null（= 未接入），不猜
+      industry_status: (row as { industry_status?: import('./types').IndustryStatus | null }).industry_status ?? null,
       price: row.price,
       chg_pct: row.chg_pct,
       turnover_pct: row.turnover_pct,
