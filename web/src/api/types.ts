@@ -240,7 +240,8 @@ export interface Stock {
   industry: string | null;
   /** 行业字段的可用性；null = 后端尚未提供该字段（旧 API） */
   industry_status: IndustryStatus | null;
-  concepts: string[];
+  /** null = 概念数据源未接入；[] = 已查询且确实无概念（当前不会出现） */
+  concepts: string[] | null;
   trade_status: 'normal' | 'suspended' | 'st';
   /** 无成交时为 null，不用 0 冒充 */
   price: number | null;

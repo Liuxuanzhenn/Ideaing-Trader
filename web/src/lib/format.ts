@@ -73,3 +73,13 @@ export function industryLabel(
   if (status === 'missing' || status === 'missing_basic') return '来源无行业记录';
   return industry ?? '行业数据未接入';
 }
+
+/**
+ * 概念文案：null = 数据源未接入，必须说出来；[] = 已查询且确实无概念，不显示任何东西。
+ * 不允许把 null 渲染成空串或「暂无概念」。
+ */
+export function conceptsText(concepts: string[] | null): string | null {
+  if (concepts === null) return '概念数据未接入';
+  if (concepts.length === 0) return null;
+  return concepts.slice(0, 3).join(' · ');
+}

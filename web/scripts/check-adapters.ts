@@ -4,7 +4,7 @@
  * 用法：npm run check:adapters
  */
 import { settleStocks } from '../src/lib/settle.ts';
-import { industryLabel } from '../src/lib/format.ts';
+import { conceptsText, industryLabel } from '../src/lib/format.ts';
 
 let failed = 0;
 const fail = (message: string) => {
@@ -53,8 +53,21 @@ for (const [industry, status, expected] of industryCases) {
   if (actual.includes('异动')) fail('行业文案不得出现「异动」类措辞');
 }
 
+// 概念文案：null 必须说「未接入」，不能被渲染成空串/空列表/「暂无概念」
+if (conceptsText(null) !== '概念数据未接入') fail(`concepts=null 应显示「概念数据未接入」，实际「${conceptsText(null)}」`);
+if (!conceptsText(null)) fail('concepts=null 不得渲染成空串');
+if (conceptsText([]) !== null) fail(`concepts=[] 是「确实无概念」，应不显示任何文案，实际「${conceptsText([])}」`);
+const shown = conceptsText(['AI 应用', '华为链']);
+if (shown !== 'AI 应用 · 华为链') fail(`concepts 有值应正常拼接，实际「${shown}」`);
+const longList = conceptsText(['a', 'b', 'c', 'd']);
+if (longList !== 'a · b · c') fail(`最多展示 3 个，实际「${longList}」`);
+for (const label of [conceptsText(null), conceptsText([])]) {
+  if (label && /暂无|没有概念|无概念/.test(label)) fail(`概念文案不得出现「确实没有」类措辞：${label}`);
+  if (label === '') fail('概念文案不得是空串');
+}
+
 if (failed) {
   console.error(`适配层语义检查失败，${failed} 项`);
   process.exit(1);
 }
-console.log('适配层语义检查通过：批量取数四态 + 行业文案七态（ok/退市/missing/missing_basic/旧API/不出现「异动」）');
+console.log('适配层语义检查通过：批量取数四态 + 行业文案七态 + 概念文案四态（null 说明未接入 / [] 不显示 / 有值拼接 / 最多 3 个）');
