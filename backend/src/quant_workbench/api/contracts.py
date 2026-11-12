@@ -325,3 +325,73 @@ class StockDetail:
     industry: str | None = None
     industry_status: str | None = None
     concepts: tuple[str, ...] | None = None
+    boards: tuple["StockBoard", ...] | None = None
+    """Membership only. None = board data not wired (or no row for this symbol)."""
+
+
+@dataclass(frozen=True, slots=True)
+class BoardRow:
+    """One board's equal-weight performance for a session.
+
+    `pct_chg_ew` is deliberately not called `pct_chg`: the official board change is
+    market-cap weighted, so a same-named field would invite a wrong comparison.
+    A board with no valid member that session is absent from the list, never 0%.
+    """
+
+    code: str
+    name: str
+    type: str
+    pct_chg_ew: float | None
+    up_count: int
+    down_count: int
+    flat_count: int
+    leader_symbol: str | None
+    leader_name: str | None
+    member_count: int
+    valid_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class BoardList:
+    meta: DataMeta
+    rows: tuple[BoardRow, ...]
+    status: str = "ok"
+    """ok: rows carry data; empty: no aggregation for that date (or not wired yet)."""
+
+
+@dataclass(frozen=True, slots=True)
+class StockBoard:
+    """A board the instrument belongs to. Membership only: no board performance here."""
+
+    code: str
+    name: str
+    type: str
+
+
+@dataclass(frozen=True, slots=True)
+class DragonTigerRow:
+    trade_id: str
+    symbol: str | None
+    secucode: str
+    name: str | None
+    market: str | None
+    close: float | None
+    chg_pct: float | None
+    turnover_rate: float | None
+    billboard_amt: float | None
+    buy_amt: float | None
+    sell_amt: float | None
+    net_amt: float | None
+    deal_amt_ratio: float | None
+    free_mcap: float | None
+    reason: str
+    reason_text: str
+
+
+@dataclass(frozen=True, slots=True)
+class DragonTigerList:
+    meta: DataMeta
+    rows: tuple[DragonTigerRow, ...]
+    status: str = "ok"
+    excluded_bj: int = 0
+    """Rows dropped by the default v1 filter. Reported, never silently discarded."""

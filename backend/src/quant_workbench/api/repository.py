@@ -433,3 +433,50 @@ def fetch_instruments_meta(path: str | None = None) -> dict[str, InstrumentsMeta
         # Blank strings are stored as None so a "" can never reach JSON as a label.
         entries[str(symbol)] = InstrumentsMetaEntry(name or None, industry or None, status)
     return entries
+
+
+BOARD_TYPE_ORDER = {"region": 0, "industry": 1, "concept": 2, "style": 3}
+BOARD_DAILY_SQL = """
+SELECT d.board_code, b.board_name, d.board_type, d.pct_chg_ew,
+       d.up_count, d.down_count, d.flat_count, d.leader_symbol, d.member_count, d.valid_count
+FROM board_daily d
+JOIN board_dim b ON b.board_code = d.board_code
+WHERE d.trade_date = ?
+ORDER BY d.board_type, d.pct_chg_ew DESC NULLS LAST, d.board_code
+"""
+STOCK_BOARDS_SQL = """
+SELECT b.board_code, b.board_name, b.board_type
+FROM instruments_board m
+JOIN board_dim b ON b.board_code = m.board_code
+WHERE m.symbol = ?
+ORDER BY b.board_type, b.board_code
+"""
+DRAGON_TIGER_SQL = """
+SELECT trade_id, symbol, secucode, name, market, close, chg_pct, turnover_rate,
+       billboard_amt, buy_amt, sell_amt, net_amt, deal_amt_ratio, free_mcap, reason, reason_text
+FROM dragon_tiger
+WHERE trade_date = ?
+ORDER BY net_amt DESC NULLS LAST, secucode
+"""
+
+
+def _optional(conn: Connection, sql: str, params: Sequence[Any] = ()) -> list[Any] | None:
+    """Run a query against an optional view: None means the dataset is not wired up at all."""
+    try:
+        return conn.execute(sql, list(params)).fetchall()
+    except Exception as error:                     # CatalogException when the view/table is absent
+        if "does not exist" in str(error) or "not found" in str(error).lower():
+            return None
+        raise
+
+
+def fetch_boards(conn: Connection, trade_date: date) -> list[Any] | None:
+    return _optional(conn, BOARD_DAILY_SQL, [trade_date.isoformat()])
+
+
+def fetch_stock_boards(conn: Connection, symbol: str) -> list[Any] | None:
+    return _optional(conn, STOCK_BOARDS_SQL, [symbol])
+
+
+def fetch_dragon_tiger(conn: Connection, trade_date: date) -> list[Any] | None:
+    return _optional(conn, DRAGON_TIGER_SQL, [trade_date.isoformat()])

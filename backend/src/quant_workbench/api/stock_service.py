@@ -49,6 +49,7 @@ def build_stock(
     snapshot_id: str,
     updated_at: datetime,
     meta: Mapping[str, InstrumentsMetaEntry] | None = None,
+    boards: tuple | None = None,
 ) -> StockDetail:
     """`trade_date` defaults to the newest stored session; never the clock.
 
@@ -113,6 +114,7 @@ def build_stock(
         price_adjustment=PRICE_ADJUSTMENT,
         industry=entry.industry if entry else None,
         industry_status=entry.status if entry else None,
+        boards=boards,
     )
 
 

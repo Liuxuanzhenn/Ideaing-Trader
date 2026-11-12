@@ -26,6 +26,7 @@ from .portfolio_store import PortfolioStore
 from .review_service import build_review
 from .screen_service import options as screen_options, screen
 from .stock_service import build_stock
+from .board_service import build_boards, build_dragon_tiger, stock_boards
 from .serialize import to_jsonable
 
 DEFAULT_DB_PATH = os.environ.get("QW_DB_PATH", "data/duckdb/ingest.duckdb")
@@ -124,6 +125,7 @@ def create_app(
                 snapshot_id=snapshot_id,
                 updated_at=updated_at,
                 meta=fetch_instruments_meta(),
+                boards=stock_boards(conn, resolve_symbol(conn, code)),
             )
         except KeyError as error:
             # Unknown code and a code with no stored bars are the same answer to the caller.
@@ -133,6 +135,48 @@ def create_app(
         finally:
             conn.close()
         return JSONResponse(content=to_jsonable(payload))
+
+
+    @app.get("/api/boards")
+    def boards(date_param: str = Query(alias="date", description="交易日 YYYY-MM-DD"),
+               type_param: str | None = Query(default=None, alias="type")) -> JSONResponse:
+        try:
+            trade_date = date.fromisoformat(date_param)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_DATE", "message": date_param}) from error
+        if type_param is not None and type_param not in ("region", "industry", "concept", "style"):
+            raise HTTPException(status_code=400,
+                                detail={"code": "INVALID_TYPE", "message": type_param})
+        conn = opener()
+        try:
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            payload = build_boards(conn, trade_date, snapshot_id=snapshot_id,
+                                   updated_at=updated_at, board_type=type_param)
+        finally:
+            conn.close()
+        return JSONResponse(content={
+            "meta": {"as_of": trade_date.isoformat(), "updated_at": to_jsonable(updated_at),
+                     "snapshot_id": payload.meta.snapshot_id, "status": payload.status},
+            "rows": to_jsonable(payload.rows)})
+
+    @app.get("/api/dragon-tiger")
+    def dragon_tiger(date_param: str = Query(alias="date", description="交易日 YYYY-MM-DD"),
+                     exclude_bj: bool = Query(default=True, alias="exclude_bj")) -> JSONResponse:
+        try:
+            trade_date = date.fromisoformat(date_param)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail={"code": "INVALID_DATE", "message": date_param}) from error
+        conn = opener()
+        try:
+            snapshot_id, updated_at = fetch_latest_snapshot(conn)
+            payload = build_dragon_tiger(conn, trade_date, snapshot_id=snapshot_id,
+                                         updated_at=updated_at, exclude_bj=exclude_bj)
+        finally:
+            conn.close()
+        return JSONResponse(content={
+            "meta": {"trade_date": trade_date.isoformat(), "total": len(payload.rows),
+                     "excluded_bj": payload.excluded_bj, "status": payload.status},
+            "rows": to_jsonable(payload.rows)})
 
     @app.get("/api/backtests/options")
     def backtest_options() -> JSONResponse:
