@@ -84,7 +84,7 @@ function BoardsTable({
     return <EmptyBlock title="当日无板块数据" description="后端返回 status=empty：该交易日没有板块聚合结果。" />;
   }
   if (rows.length === 0) {
-    return <EmptyBlock title="该类型当日无数据" description={`后端没有返回 ${TABS.find((t) => t.id === tab)?.label} 类板块。`} />;
+    return <EmptyBlock title="该分类当日无数据" description={`${TABS.find((t) => t.id === tab)?.label}类当日没有数据，切换其它分类或换交易日查看。`} />;
   }
 
   return (
