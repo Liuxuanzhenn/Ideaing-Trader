@@ -336,8 +336,9 @@ G0 的 schema / provenance / API 只读基线、页面字段矩阵和独立审�
 下一工作顺序：
 1. 证券元数据生产落地已完成（2026-11-12）：用户授权后全量采集并发布 `instruments_meta.parquet`，5,501/5,501 覆盖，error 最终 0，universe 指纹与生产 `instruments` 全等。规范路径 `/root/autodl-tmp/quant_meta/instruments_meta.parquet`。未改 DuckDB、未建表、未重启服务。
 2. 后端部署已完成（2026-11-12）：集成分支 `e05ede9` 已合 main（`7ec07d9`）并部署到远端，`QW_INSTRUMENTS_META_PATH` 已生效。**未 push 到 origin**，远端代码领先 origin；下次 push 前须确认二者一致。
-3. 前端状态未部署：线上仍是旧静态产物，页面文案仍为旧版；部署前端需另外构建上传，属独立授权项。
+3. 前端交付形态已定为**本机预览**（2026-11-12，`7368c3b`）：`vite preview` 在 127.0.0.1:5274 复用 dev 的 `/api`+`/health` 代理，token 仅从 `QW_API_TOKEN` 在 Node 层注入，缺 token 硬失败。远端无静态服务器/反代（nginx 未安装），v1 不做服务器托管；需服务器托管时必须新增同源反代注入 Bearer，属新基础设施需单独授权。真实接口连通仍未验证（隧道不可达）。
 4. G1 读取契约：只接个股详情与筛选行；`industry_status` 为 nullable（loader 四态）；文件缺失或文件存在但无该 symbol 行时均返回 NULL，不把未覆盖伪装为源查询后的 `missing`。逐请求读整个 Parquet 的性能：冷读约 497–570 ms，`data-status` 85 ms；未做稳定运行下 P50/P95，非集成阻塞，待真实基准后再定是否缓存。
 5. 指数增量同步、数据集级 manifest、G1 查询优化另开任务卡排序；资金流/资讯等新数据源另列区间，不以空列表伪装已接入。
+6. **待用户决策（桌面壳）**：PRD §2.2 与技术方案 §2.1/§2.4 的终态是桌面应用（Tauri/Electron 包装同一套前端，壳的主进程持有 token），但开发计划 G0–G5 从未排入壳与打包，属计划缺口。需定：壳选型（Tauri/Electron）与区间（建议 G4 之后、G5 收口前做最小壳：窗口 + 加载 dist + 主进程注入 token + 持久化）。壳不改变后端边界；token 存储（系统钥匙串 vs 本地文件 ACL）与自动更新未评估。
 
 本文件中所有“当前状态”随区间门更新；阶段已完成的旧计划不得继续显示为待办。既有 PRD、技术设计、Git/许可证和安全规则继续有效；若本节冲突，以用户最新决策及本节具体执行规则为准。
