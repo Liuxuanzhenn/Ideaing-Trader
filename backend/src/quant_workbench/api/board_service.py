@@ -35,9 +35,10 @@ def build_boards(conn: Connection, trade_date: date, *, snapshot_id: str,
     boards = [
         BoardRow(code=str(code), name=str(name), type=str(kind), pct_chg_ew=None if pct is None else float(pct),
                  up_count=int(up), down_count=int(down), flat_count=int(flat),
-                 leader_symbol=None if leader is None else str(leader), leader_name=None,
+                 leader_symbol=None if leader is None else str(leader),
+                 leader_name=None if leader_name is None else str(leader_name),
                  member_count=int(members), valid_count=int(valid))
-        for code, name, kind, pct, up, down, flat, leader, members, valid in rows
+        for code, name, kind, pct, up, down, flat, leader, leader_name, members, valid in rows
     ]
     if board_type:
         boards = [board for board in boards if board.type == board_type]
