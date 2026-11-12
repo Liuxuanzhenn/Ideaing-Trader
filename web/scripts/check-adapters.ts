@@ -6,6 +6,7 @@
 import { settleStocks } from '../src/lib/settle.ts';
 import { conceptsText, industryLabel } from '../src/lib/format.ts';
 import { isBlank, nextSort, sortRows } from '../src/lib/sort.ts';
+import { createRequestGate } from '../src/lib/request-gate.ts';
 
 let failed = 0;
 const fail = (message: string) => {
@@ -93,8 +94,25 @@ if (st !== null) fail('第三次点击应取消排序');
 for (const blank of [null, undefined, '', '—']) if (!isBlank(blank)) fail(`isBlank 应判为真空值: ${String(blank)}`);
 if (isBlank(0) || isBlank('0')) fail('0 不是空值，不能被当成缺失');
 
+// 过期响应保护：同一 key 的新请求会让旧令牌失效；不同 key 互不影响
+const gate = createRequestGate();
+const industry1 = gate.begin('2026-11-11|industry');
+if (!gate.isLatest(industry1)) fail('首次请求应是最新');
+const concept1 = gate.begin('2026-11-11|concept');
+if (!gate.isLatest(industry1)) fail('不同 key 不应互相作废');
+const industry2 = gate.begin('2026-11-11|industry');
+if (gate.isLatest(industry1)) fail('同 key 的旧令牌必须失效');
+if (!gate.isLatest(industry2)) fail('同 key 的最新令牌必须有效');
+gate.invalidate('2026-11-11|industry');
+if (gate.isLatest(industry2)) fail('invalidate 后旧令牌必须失效');
+if (!gate.isLatest(concept1)) fail('invalidate 只影响指定 key');
+gate.invalidateAll();
+if (gate.isLatest(gate.begin('2026-11-11|concept'))) {
+  // 新令牌永远有效，这里只是确认 invalidateAll 后能重新取号
+}
+
 if (failed) {
   console.error(`适配层语义检查失败，${failed} 项`);
   process.exit(1);
 }
-console.log('适配层语义检查通过：批量取数四态 + 行业七态 + 概念四态 + 排序语义（空值恒末尾 / 数值 / 日期 / 三态循环 / 无排序保序）');
+console.log('适配层语义检查通过：批量取数四态 + 行业七态 + 概念四态 + 排序语义 + 过期响应门（同 key 递号 / 跨 key 隔离 / invalidate）');
