@@ -30,13 +30,19 @@ import type { DemoState } from '../lib/demo';
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
+/**
+ * mock 的「现在」是常量：截图与像素比对需要同一 state 每次加载完全一致。
+ * 取 2026-11-06 15:00 (+08:00)，与快照交易日对齐；真实实现当然用 System clock。
+ */
+const MOCK_NOW = Date.UTC(2026, 10, 6, 7, 0, 0);
+
 /* ============================================================
    示例数据：全部由 mock 生成，界面常驻「示例数据」横幅。
    每个数字都对应契约字段，接后端时整体替换，不改页面。
    ============================================================ */
 
 function meta(level: DataStatusLevel, ageMs = 20 * HOUR, failed: string[] = []): DataMeta {
-  const at = new Date(Date.now() - ageMs).toISOString();
+  const at = new Date(MOCK_NOW - ageMs).toISOString();
   return {
     as_of: at,
     updated_at: at,
@@ -66,7 +72,7 @@ function rng(seed: number) {
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const never = <T,>(): Promise<T> => new Promise<T>(() => {});
 const clock = () => {
-  const d = new Date();
+  const d = new Date(MOCK_NOW);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
@@ -150,7 +156,7 @@ const NEWS: NewsItem[] = [
 function buildSeries(empty: boolean): ReviewSeries {
   const days = 20;
   const dates: string[] = [];
-  const d = new Date();
+  const d = new Date(MOCK_NOW);
   while (dates.length < days) {
     if (d.getDay() !== 0 && d.getDay() !== 6) {
       dates.unshift(`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
@@ -239,7 +245,7 @@ function reviewPayload(state: DemoState): Review {
     prev: empty
       ? null
       : {
-          as_of: new Date(Date.now() - 2 * DAY).toISOString(),
+          as_of: new Date(MOCK_NOW - 2 * DAY).toISOString(),
           sealed_up: 46,
           broken_up: 30,
           sealed_down: 21,
@@ -275,7 +281,7 @@ function candlesFor(seed: number, price: number): Candle[] {
     close *= 1 + drift + (random() - 0.5) * 0.03;
     const high = Math.max(open, close) * (1 + random() * 0.01);
     const low = Math.min(open, close) * (1 - random() * 0.01);
-    const day = new Date(Date.now() - i * DAY);
+    const day = new Date(MOCK_NOW - i * DAY);
     // K 线 time 必须 yyyy-mm-dd（契约同为 ISO），lightweight-charts 不接受 MM-DD
     out.push({
       date: `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`,
@@ -487,33 +493,21 @@ const memory = {
   agentSeq: 1,
 };
 
-const stepAt = new Map<string, number>();
-
-/** 进度由 mock 按时间推进；真实实现里这段逻辑在后端，前端只轮询。 */
+/**
+ * 进度推进必须是**幂等**的：同一份 mock 数据任意次轮询后都停在同一个值，
+ * 否则截图/像素比对会因为轮询次数不同而抖动（实测右栏进度条会差几个百分点）。
+ * 真实实现里进度由后端推送，前端只轮询。
+ */
 function advanceTasks(): void {
-  const now = Date.now();
-  if (!memory.tasks.some((task) => task.status === 'running')) {
-    const queued = memory.tasks.find((task) => task.status === 'queued');
-    if (queued) {
-      queued.status = 'running';
-      queued.progress_pct = 3;
-      stepAt.set(queued.id, now + 600);
-    }
+  const running = memory.tasks.find((task) => task.status === 'running');
+  if (running) {
+    running.progress_pct = 62;
+    return;
   }
-  for (const task of memory.tasks) {
-    if (task.status !== 'running') continue;
-    const next = stepAt.get(task.id) ?? now;
-    if (now < next) continue;
-    task.progress_pct = Math.min(100, task.progress_pct + 12);
-    stepAt.set(task.id, now + 700);
-    if (task.progress_pct >= 100) {
-      task.status = 'success';
-      task.progress_pct = 100;
-      task.finished = clock();
-      task.artifact = task.artifact ?? `${task.id} · 净值 / 回撤 / 分年 / 交易明细`;
-      task.result_ready = task.type === '回测';
-    }
-  }
+  const queued = memory.tasks.find((task) => task.status === 'queued');
+  if (!queued) return;
+  queued.status = 'running';
+  queued.progress_pct = 62;
 }
 
 const portfolio = (): Portfolio => ({ watchlist: [...memory.watchlist], basket: [...memory.basket] });
