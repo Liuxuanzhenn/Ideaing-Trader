@@ -81,7 +81,7 @@ export function ContextPanel({
                       {item.chg_pct === null ? '—' : pct(item.chg_pct)}
                     </span>
                   </div>
-                  <dl className="ctx-kv" style={{ fontSize: 13, marginTop: 10 }}>
+                  <dl className="ctx-kv" style={{ fontSize: '0.8125rem', marginTop: 10 }}>
                     <dt>成交额</dt><dd className="num">{item.amount === null ? '—' : yuan(item.amount)}</dd>
                     <dt>换手率</dt><dd className="num">{item.turnover_pct === null ? '—' : `${item.turnover_pct}%`}</dd>
                     <dt>连板上限</dt><dd className="num">{item.stats.max_ladder} 板</dd>

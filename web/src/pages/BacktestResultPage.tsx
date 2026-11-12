@@ -212,7 +212,7 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
 
         <div className="card">
           <div className="card-head"><span className="card-title">交易假设</span></div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--muted-2)', lineHeight: 1.85 }}>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: '0.8125rem', color: 'var(--muted-2)', lineHeight: 1.85 }}>
             {data.assumptions.map((item) => <li key={item}>{item}</li>)}
           </ul>
         </div>
