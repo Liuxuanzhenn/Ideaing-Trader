@@ -41,7 +41,7 @@
 | P0 | 三日 bars 增量、派生表重算、snapshot 更新与 S6 | 算盘 | 已完成：bars max=2026-11-11，派生表 max=2026-11-11，rule_version 一致 |
 | P0 | 当前表 schema、来源与读取路径实测冻结 | 算盘 + 舵手 | **G0 已完成**：生产对象、独立文件、provenance、API 基线和未知项已写入 §11；API 延迟为旧部署口径 |
 | P0 | 页面字段到真实 API 的映射和缺失态矩阵 | 舵面 | **G0 已完成**：8 页 + 右栏矩阵已交付；未改文件 |
-| P0 | 证券元数据生产落地与 name/industry API join | 用户授权数据采集/写入；算盘 + 舵手实现；舵面消费 | **数据已落地**（2026-11-12）：全量 Parquet 已发布，5,501/5,501 覆盖。剩余：API join 代码在隔离集成分支 `e05ede9`，未部署；部署需用户再授权且配置 `QW_INSTRUMENTS_META_PATH` |
+| P0 | 证券元数据生产落地与 name/industry API join | 用户授权数据采集/写入；算盘 + 舵手实现；舵面消费 | **已完成**（2026-11-12）：Parquet 已发布 + 后端 API 已部署（`e05ede9` 合 main `7ec07d9`），实测 `600000` 返回 `浦发银行`/`J66货币金融服务`/`ok`。剩余：未 push origin、未部署前端 |
 | P0 | 回测结果持久化、任务查询和断线恢复 | 舵手 + 算盘 + 舵面 | G3；未开始 |
 | P0 | MCP 基础查询和至少一个 Agent 驱动研究任务 | 舵手 + 算盘 + 舵面 | G4；未开始 |
 | P1 | 资金流、资讯、龙虎榜、流通市值 | 算盘 | 数据源/授权/schema 未冻结，不阻塞 G0-G3 |
@@ -327,17 +327,17 @@ G0 首批冻结现有 `/api/review`、`/api/stocks/{code}`、`/api/screen/option
 
 ## 12. 当前区间与下一步
 
-当前区间：**G1 证券元数据数据层已完成生产落地，G0 基线仍有效**。
+当前区间：**G1 证券元数据后端垂直切片已上线，前端待部署**。
 
-G0 的 schema / provenance / API 只读基线、页面字段矩阵和独立审查结论均已归档。G1 部分：后端 `811d36b` 与前端 `12f30bf` 已合入隔离分支 `integration/backend-c8b72ab`（集成头 `e05ede9`），未合 main、未 push；集成分支后端 212 tests 通过，前端静态检查与无 token build 通过。生产侧已于 2026-11-12 发布 `instruments_meta.parquet`（5,501 行，sha256 `54cf3438…13c5dc`），但部署未更新，API 仍返回 `name`/`industry` 为 null 且无 `industry_status`——这是预期兼容态，不是缺陷。
+G0 的 schema / provenance / API 只读基线、页面字段矩阵和独立审查结论均已归档。G1 部分：后端 `811d36b` 与前端 `12f30bf` 经集成分支 `e05ede9` 已合入 main（`7ec07d9`，未 push）；main 上后端 212 tests 通过，前端静态检查与无 token build 通过。生产侧 2026-11-12 已完成两步：①发布 `instruments_meta.parquet`（5,501 行，sha256 `54cf3438…13c5dc`）；②部署后端 API（新 PID 121731，注入 `QW_INSTRUMENTS_META_PATH`）。实测 `/api/stocks/600000` 返回 `浦发银行`/`J66货币金融服务`/`ok`，`SH600102` 返回 `empty_for_delisted`，`/api/screen` 393 行含合法 `industry_status`。备份 `/root/quant_api.bak.20261112T053808Z` 保留未删；DuckDB 未改、无 DDL、未 push、未部署前端。
 
-#27 bars 增量、派生重算和 snapshot 已完成；本次授权仅限元数据采集与文件发布，不包含代码部署。
+#27 bars 增量、派生重算和 snapshot 已完成；本次授权仅限元数据采集、文件发布与后端 API 部署。
 
 下一工作顺序：
 1. 证券元数据生产落地已完成（2026-11-12）：用户授权后全量采集并发布 `instruments_meta.parquet`，5,501/5,501 覆盖，error 最终 0，universe 指纹与生产 `instruments` 全等。规范路径 `/root/autodl-tmp/quant_meta/instruments_meta.parquet`。未改 DuckDB、未建表、未重启服务。
-2. 剩余待授权项：部署集成分支 `e05ede9` 并把 `QW_INSTRUMENTS_META_PATH` 指向上述路径，API 才会返回 `name`/`industry`/`industry_status`；部署属写操作，需用户明确授权。
-3. G1 读取契约已在集成分支实现：只接个股详情和筛选行；`industry_status` 为 nullable（loader 四态）；文件缺失或文件存在但无该 symbol 行时均返回 NULL，不把未覆盖伪装为源查询后的 `missing`。逐请求读整个 Parquet 的性能尚未实测；非集成阻塞，待真实文件基准后再决定是否缓存。
-4. 未授权部署前，可继续在集成分支做本地验证和代码复核；合 main 仍需舵手阶段门。
+2. 后端部署已完成（2026-11-12）：集成分支 `e05ede9` 已合 main（`7ec07d9`）并部署到远端，`QW_INSTRUMENTS_META_PATH` 已生效。**未 push 到 origin**，远端代码领先 origin；下次 push 前须确认二者一致。
+3. 前端状态未部署：线上仍是旧静态产物，页面文案仍为旧版；部署前端需另外构建上传，属独立授权项。
+4. G1 读取契约：只接个股详情与筛选行；`industry_status` 为 nullable（loader 四态）；文件缺失或文件存在但无该 symbol 行时均返回 NULL，不把未覆盖伪装为源查询后的 `missing`。逐请求读整个 Parquet 的性能：冷读约 497–570 ms，`data-status` 85 ms；未做稳定运行下 P50/P95，非集成阻塞，待真实基准后再定是否缓存。
 5. 指数增量同步、数据集级 manifest、G1 查询优化另开任务卡排序；资金流/资讯等新数据源另列区间，不以空列表伪装已接入。
 
 本文件中所有“当前状态”随区间门更新；阶段已完成的旧计划不得继续显示为待办。既有 PRD、技术设计、Git/许可证和安全规则继续有效；若本节冲突，以用户最新决策及本节具体执行规则为准。
