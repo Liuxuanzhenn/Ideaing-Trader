@@ -8,11 +8,28 @@ models here so nothing downstream sees floats or SQL types.
 
 from __future__ import annotations
 
+import os
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Any, Protocol, Sequence
+from typing import Any, NamedTuple, Protocol, Sequence
 
 from quant_workbench.data import DailyBar
+
+INSTRUMENTS_META_PATH = os.environ.get(
+    "QW_INSTRUMENTS_META_PATH", "data/parquet/instruments_meta.parquet"
+)
+INSTRUMENTS_META_STATUSES = frozenset({"ok", "empty_for_delisted", "missing", "missing_basic"})
+INSTRUMENTS_META_SQL = """
+SELECT symbol, name, industry, industry_status
+FROM read_parquet(?)
+"""
+
+
+class InstrumentsMetaEntry(NamedTuple):
+    name: str | None
+    industry: str | None
+    status: str | None
+
 
 ONE_SESSION_SQL = """
 SELECT symbol, trade_date, open, high, low, close, preclose, volume, amount,
@@ -387,3 +404,32 @@ def _to_bar(row: Sequence[Any]) -> DailyBar | None:
         trading=trading,
         is_st=bool(is_st),
     )
+
+
+def fetch_instruments_meta(path: str | None = None) -> dict[str, InstrumentsMetaEntry] | None:
+    """Read the optional instruments_meta parquet, or None when no such file exists.
+
+    None and an empty dict mean different things: None is "metadata is not available",
+    and every caller must then leave name/industry/industry_status as None instead of
+    reporting the source as having no record. A symbol absent from a file that does
+    exist is reported the same way, because the loader never queried it either.
+    """
+    resolved = path if path is not None else INSTRUMENTS_META_PATH
+    if not resolved or not os.path.exists(resolved):
+        return None
+    import duckdb  # local import: this reader needs its own handle, not the injected Connection
+
+    conn = duckdb.connect()
+    try:
+        rows = conn.execute(INSTRUMENTS_META_SQL, [resolved]).fetchall()
+    finally:
+        conn.close()
+    entries: dict[str, InstrumentsMetaEntry] = {}
+    for symbol, name, industry, status in rows:
+        if status is not None and status not in INSTRUMENTS_META_STATUSES:
+            raise ValueError(
+                f"instruments_meta has an unknown industry_status {status!r} for {symbol}"
+            )
+        # Blank strings are stored as None so a "" can never reach JSON as a label.
+        entries[str(symbol)] = InstrumentsMetaEntry(name or None, industry or None, status)
+    return entries
