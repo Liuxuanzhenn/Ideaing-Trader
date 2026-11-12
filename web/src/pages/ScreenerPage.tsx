@@ -4,7 +4,7 @@ import type { Portfolio, ScreenCondition, ScreenResult, ScreenField, ScreenOp } 
 import { ApiError } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
-import { fmt, pct, toneOf, yuan } from '../lib/format';
+import { fmt, industryLabel, pct, toneOf, yuan } from '../lib/format';
 
 interface Props {
   client: ApiClient;
@@ -216,7 +216,7 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
                           <span className="c">{row.code}</span>
                         </div>
                       </td>
-                      <td className="muted">{row.industry ?? '—'}</td>
+                      <td className="muted">{industryLabel(row.industry, row.industry_status)}</td>
                       <td className="num">{fmt(row.price)}</td>
                       <td className={`num ${toneOf(row.chg_pct)}`}>{pct(row.chg_pct)}</td>
                       <td className="num">{row.turnover_pct === null ? '—' : `${row.turnover_pct}%`}</td>

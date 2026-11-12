@@ -4,6 +4,7 @@
  * 用法：npm run check:adapters
  */
 import { settleStocks } from '../src/lib/settle.ts';
+import { industryLabel } from '../src/lib/format.ts';
 
 let failed = 0;
 const fail = (message: string) => {
@@ -36,8 +37,24 @@ else if (!/只存在于当前会话/.test(threw.message)) fail(`应抛第一个�
 const empty = settleStocks([]);
 if (empty.length !== 0) fail('空输入应返回空数组');
 
+// 行业文案：四种状态 + 旧 API 缺字段，都不许把 null 说成「没有异动」
+const industryCases: [string | null, string | null, string][] = [
+  ['软件', 'ok', '软件'],
+  [null, 'ok', '来源无行业记录'],
+  [null, 'empty_for_delisted', '已退市/无行业分类'],
+  [null, 'missing', '来源无行业记录'],
+  [null, 'missing_basic', '来源无行业记录'],
+  [null, null, '行业数据未接入'],
+  ['软件', null, '软件'],
+];
+for (const [industry, status, expected] of industryCases) {
+  const actual = industryLabel(industry, status as never);
+  if (actual !== expected) fail(`industryLabel(${industry}, ${status}) 应为「${expected}」，实际「${actual}」`);
+  if (actual.includes('异动')) fail('行业文案不得出现「异动」类措辞');
+}
+
 if (failed) {
   console.error(`适配层语义检查失败，${failed} 项`);
   process.exit(1);
 }
-console.log('适配层语义检查通过：全成功 / 部分失败丢行 / 全部失败抛首个错误 / 空输入');
+console.log('适配层语义检查通过：批量取数四态 + 行业文案七态（ok/退市/missing/missing_basic/旧API/不出现「异动」）');

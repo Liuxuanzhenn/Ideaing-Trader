@@ -59,3 +59,17 @@ export function defaultBacktestRange(latest: string): { from: string; to: string
   const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
   return { from: start.toISOString().slice(0, 10), to: latest };
 }
+
+/**
+ * 行业文案：按后端给的可用性状态显示，不把「没有记录」说成「没有异动」。
+ * status 为 null 表示后端还没提供该字段（旧 API）——有 industry 就照用，没有就说未接入。
+ */
+export function industryLabel(
+  industry: string | null,
+  status: import('../api/types').IndustryStatus | null,
+): string {
+  if (status === 'ok') return industry ?? '来源无行业记录';
+  if (status === 'empty_for_delisted') return '已退市/无行业分类';
+  if (status === 'missing' || status === 'missing_basic') return '来源无行业记录';
+  return industry ?? '行业数据未接入';
+}

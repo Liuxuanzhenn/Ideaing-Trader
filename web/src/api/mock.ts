@@ -308,6 +308,7 @@ function stockPayload(state: DemoState, code: string): Stock {
     code,
     name: base.name,
     board: base.board,
+    industry_status: base.industry ? 'ok' : 'missing_basic',
     industry: partial ? null : base.industry,
     concepts: base.concepts,
     trade_status: 'normal',
@@ -350,18 +351,18 @@ const SCREEN_FIELDS: ScreenOptions['fields'] = [
 ];
 
 const SCREEN_ROWS: ScreenRow[] = [
-  { code: '002261', name: '拓维信息', industry: '软件', price: 26.18, chg_pct: 9.96, turnover_pct: 22.4, ladder: 6, limit_20: 8, amount: 58e8, mcap: 328e8 },
-  { code: '000977', name: '浪潮信息', industry: '计算机', price: 48.72, chg_pct: 6.85, turnover_pct: 9.8, ladder: 4, limit_20: 6, amount: 88e8, mcap: 716e8 },
-  { code: '603083', name: '剑桥科技', industry: '通信', price: 41.2, chg_pct: 10.01, turnover_pct: 18.2, ladder: 3, limit_20: 5, amount: 31e8, mcap: 110e8 },
-  { code: '002230', name: '科大讯飞', industry: '软件', price: 52.36, chg_pct: 9.98, turnover_pct: 8.4, ladder: 2, limit_20: 4, amount: 72e8, mcap: 1210e8 },
-  { code: '300502', name: '新易盛', industry: '通信', price: 88.2, chg_pct: 9.99, turnover_pct: 7.6, ladder: 2, limit_20: 3, amount: 47e8, mcap: 620e8 },
-  { code: '300474', name: '景嘉微', industry: '半导体', price: 76.3, chg_pct: 10.0, turnover_pct: 11.2, ladder: 2, limit_20: 2, amount: 32e8, mcap: 310e8 },
-  { code: '600410', name: '华胜天成', industry: '计算机', price: 9.86, chg_pct: 10.05, turnover_pct: 14.5, ladder: 1, limit_20: 1, amount: 18e8, mcap: 108e8 },
-  { code: '002123', name: '梦网科技', industry: '通信', price: 12.44, chg_pct: 9.98, turnover_pct: 19.8, ladder: 1, limit_20: 2, amount: 16e8, mcap: 96e8 },
-  { code: '300229', name: '拓尔思', industry: '软件', price: 18.32, chg_pct: 9.97, turnover_pct: 13.2, ladder: 1, limit_20: 1, amount: 21e8, mcap: 134e8 },
-  { code: '601595', name: '上海电影', industry: '传媒', price: 21.6, chg_pct: 10.02, turnover_pct: 6.4, ladder: 1, limit_20: 1, amount: 9.2e8, mcap: 96e8 },
-  { code: '603533', name: '掌阅科技', industry: '传媒', price: 23.18, chg_pct: 10.0, turnover_pct: 8.9, ladder: 1, limit_20: 2, amount: 11e8, mcap: 102e8 },
-  { code: '300624', name: '万兴科技', industry: '软件', price: 62.4, chg_pct: 9.99, turnover_pct: 12.7, ladder: 1, limit_20: 3, amount: 24e8, mcap: 132e8 },
+  { code: '002261', name: '拓维信息', industry: '软件', industry_status: 'ok', price: 26.18, chg_pct: 9.96, turnover_pct: 22.4, ladder: 6, limit_20: 8, amount: 58e8, mcap: 328e8 },
+  { code: '000977', name: '浪潮信息', industry: '计算机', industry_status: 'ok', price: 48.72, chg_pct: 6.85, turnover_pct: 9.8, ladder: 4, limit_20: 6, amount: 88e8, mcap: 716e8 },
+  { code: '603083', name: '剑桥科技', industry: '通信', industry_status: 'ok', price: 41.2, chg_pct: 10.01, turnover_pct: 18.2, ladder: 3, limit_20: 5, amount: 31e8, mcap: 110e8 },
+  { code: '002230', name: '科大讯飞', industry: '软件', industry_status: 'ok', price: 52.36, chg_pct: 9.98, turnover_pct: 8.4, ladder: 2, limit_20: 4, amount: 72e8, mcap: 1210e8 },
+  { code: '300502', name: '新易盛', industry: '通信', industry_status: 'ok', price: 88.2, chg_pct: 9.99, turnover_pct: 7.6, ladder: 2, limit_20: 3, amount: 47e8, mcap: 620e8 },
+  { code: '300474', name: '景嘉微', industry: '半导体', industry_status: 'ok', price: 76.3, chg_pct: 10.0, turnover_pct: 11.2, ladder: 2, limit_20: 2, amount: 32e8, mcap: 310e8 },
+  { code: '600410', name: '华胜天成', industry: '计算机', industry_status: 'ok', price: 9.86, chg_pct: 10.05, turnover_pct: 14.5, ladder: 1, limit_20: 1, amount: 18e8, mcap: 108e8 },
+  { code: '002123', name: '梦网科技', industry: '通信', industry_status: 'ok', price: 12.44, chg_pct: 9.98, turnover_pct: 19.8, ladder: 1, limit_20: 2, amount: 16e8, mcap: 96e8 },
+  { code: '300229', name: '拓尔思', industry: '软件', industry_status: 'ok', price: 18.32, chg_pct: 9.97, turnover_pct: 13.2, ladder: 1, limit_20: 1, amount: 21e8, mcap: 134e8 },
+  { code: '601595', name: '上海电影', industry: '传媒', industry_status: 'ok', price: 21.6, chg_pct: 10.02, turnover_pct: 6.4, ladder: 1, limit_20: 1, amount: 9.2e8, mcap: 96e8 },
+  { code: '603533', name: '掌阅科技', industry: '传媒', industry_status: 'ok', price: 23.18, chg_pct: 10.0, turnover_pct: 8.9, ladder: 1, limit_20: 2, amount: 11e8, mcap: 102e8 },
+  { code: '300624', name: '万兴科技', industry: '软件', industry_status: 'ok', price: 62.4, chg_pct: 9.99, turnover_pct: 12.7, ladder: 1, limit_20: 3, amount: 24e8, mcap: 132e8 },
 ];
 
 function matches(row: ScreenRow, conditions: ScreenCondition[]): boolean {
