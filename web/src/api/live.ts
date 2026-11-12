@@ -166,6 +166,8 @@ interface LiveStock {
   industry_status?: import('./types').IndustryStatus | null;
   /** 旧后端可能没有该字段 */
   concepts?: string[] | null;
+  /** 板块归属；旧后端没有 */
+  boards?: { code: string; name: string; type: string }[] | null;
 }
 
 /**
@@ -199,6 +201,7 @@ export async function fetchLiveStock(code: string): Promise<import('./types').St
     industry: stock.industry,
     industry_status: stock.industry_status ?? null,
     concepts: stock.concepts ?? null, // 缺失即未接入，不拿 [] 冒充「确实没有」
+    boards: stock.boards ? stock.boards.map((b) => ({ code: b.code, name: b.name, type: b.type })) : null,
     trade_status: stock.trade_status,
     price: stock.price,
     chg_pct: stock.chg_pct,
@@ -508,6 +511,69 @@ export async function fetchLiveBacktestResult(taskId: string): Promise<import('.
     throw new Error('该回测结果只存在于当前会话内存中，请重新运行');
   }
   return toBacktestResult(report);
+}
+
+interface LiveBoardList {
+  meta: { as_of: string; updated_at: string | null; snapshot_id: string | null; status: string };
+  rows: {
+    code: string; name: string; type: string;
+    pct_chg_ew: number | null; up_count: number; down_count: number; flat_count: number;
+    leader_symbol: string | null; leader_name: string | null; member_count: number; valid_count: number;
+  }[];
+}
+
+/** 一次取全部板块类型（不传 type），前端按 type 过滤，切 tab 不重复请求 */
+export async function fetchLiveBoards(date: string): Promise<import('./types').BoardList> {
+  const payload = await getJson<LiveBoardList>(`/api/boards?date=${encodeURIComponent(date)}`);
+  return {
+    meta: {
+      as_of: payload.meta.as_of,
+      updated_at: payload.meta.updated_at ?? null,
+      snapshot: payload.meta.snapshot_id ?? null,
+      level: payload.meta.status === 'empty' ? 'empty' : 'ok',
+    },
+    rows: payload.rows.map((row) => ({
+      code: row.code,
+      name: row.name,
+      type: row.type,
+      pct_chg_ew: row.pct_chg_ew,
+      up_count: row.up_count,
+      down_count: row.down_count,
+      flat_count: row.flat_count,
+      leader_symbol: row.leader_symbol,
+      leader_name: row.leader_name,
+      member_count: row.member_count,
+      valid_count: row.valid_count,
+    })),
+    status: payload.meta.status === 'empty' ? 'empty' : 'ok',
+  };
+}
+
+interface LiveDragonTiger {
+  meta: { trade_date: string; total: number; excluded_bj: number; status: string };
+  rows: {
+    trade_id: string; symbol: string | null; secucode: string; name: string | null; market: string | null;
+    close: number | null; chg_pct: number | null; turnover_rate: number | null;
+    billboard_amt: number | null; buy_amt: number | null; sell_amt: number | null;
+    net_amt: number | null; deal_amt_ratio: number | null; free_mcap: number | null;
+    reason: string; reason_text: string;
+  }[];
+}
+
+export async function fetchLiveDragonTiger(date: string): Promise<import('./types').DragonTigerList> {
+  const payload = await getJson<LiveDragonTiger>(`/api/dragon-tiger?date=${encodeURIComponent(date)}`);
+  return {
+    meta: {
+      as_of: payload.meta.trade_date,
+      // 该端点不返回 updated_at/snapshot，缺就是 null，不编造
+      updated_at: null,
+      snapshot: null,
+      level: payload.meta.status === 'empty' ? 'empty' : 'ok',
+    },
+    rows: payload.rows,
+    status: payload.meta.status === 'empty' ? 'empty' : 'ok',
+    excluded_bj: payload.meta.excluded_bj,
+  };
 }
 
 export async function fetchLivePortfolio(): Promise<import('./types').Portfolio> {

@@ -115,6 +115,17 @@ export function ReviewSkeleton() {
   );
 }
 
+/** 卡片内的行骨架（板块/龙虎榜这类小表用） */
+export function SkeletonRows({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="skeleton" aria-busy="true" aria-label="加载中">
+      {Array.from({ length: rows }, (_, i) => (
+        <div className="sk sk-row" key={i} />
+      ))}
+    </div>
+  );
+}
+
 export function TasksSkeleton() {
   return (
     <div className="skeleton" aria-busy="true" aria-label="加载任务">

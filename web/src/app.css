@@ -716,3 +716,20 @@ table.data.sectors .link-chip { font-size: .8125rem; }
 .th-caret { font-size: 9px; opacity: .5; }
 .th-sort.active .th-caret { opacity: 1; }
 .th-sort:focus-visible { outline: 2px solid #ffffff66; outline-offset: 1px; }
+
+/* 个股页板块标签：行业/概念权重高，地域/风格更淡 */
+.board-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.board-tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: var(--radius-xs);
+  font-size: var(--fs-125); line-height: 1.5;
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .05); color: var(--muted);
+  white-space: nowrap;
+}
+.board-tag--industry { color: var(--text); background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .16); }
+.board-tag--concept { color: var(--text); background: rgba(255, 255, 255, .06); }
+.board-tag--region, .board-tag--style { color: var(--muted-2); background: transparent; }
+.board-tag--muted { color: var(--muted-2); background: transparent; }
+.board-tag--more { cursor: pointer; color: var(--muted); border-style: dashed; }
+.board-tag--more:hover { color: var(--text); border-color: rgba(255, 255, 255, .3); }
