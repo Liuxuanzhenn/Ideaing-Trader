@@ -5,6 +5,7 @@ import { ApiError } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
 import { fmt, industryLabel, pct, toneOf, yuan } from '../lib/format';
+import { SortTh, sortRows, useScrollShadow, useSort } from '../components/TableSort';
 
 interface Props {
   client: ApiClient;
@@ -19,6 +20,9 @@ const PAGE_SIZE = 8;
 export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpenStock }: Props) {
   const loadOptions = useCallback(() => client.getScreenOptions(), [client]);
   const options = useAsync(loadOptions);
+  // 排序状态与滚动阴影必须在任何条件返回之前声明（Hooks 规则）
+  const { sort, toggle } = useSort();
+  const wrapRef = useScrollShadow<HTMLDivElement>();
 
   const [conditions, setConditions] = useState<ScreenCondition[]>([]);
   const [draft, setDraft] = useState<{ field: ScreenField; op: ScreenOp; value: string }>({
@@ -82,7 +86,21 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
   const rows = result?.rows ?? [];
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, pages);
-  const pageRows = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  // 客户端排序：只在展示层，不改筛选参数、不改分页大小
+  const sortedRows = sortRows(rows, sort, (row, key) => {
+    switch (key) {
+      case 'name': return row.name ?? row.code;
+      case 'industry': return row.industry;
+      case 'price': return row.price;
+      case 'chg_pct': return row.chg_pct;
+      case 'turnover_pct': return row.turnover_pct;
+      case 'ladder': return row.ladder;
+      case 'limit_20': return row.limit_20;
+      case 'amount': return row.amount;
+      default: return null;
+    }
+  });
+  const pageRows = sortedRows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
   const disabled = opt.meta.status.level === 'stale';
 
   return (
@@ -188,14 +206,18 @@ export function ScreenerPage({ client, portfolio, onAddWatch, onAddBasket, onOpe
           </div>
         ) : (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap table-wrap--sticky" ref={wrapRef}>
               <table className="data">
                 <thead>
                   <tr>
-                    <th>股票</th><th>行业</th>
-                    <th className="num">现价</th><th className="num">涨跌幅</th>
-                    <th className="num">换手率</th><th className="num">连板</th>
-                    <th className="num">近 20 日涨停</th><th className="num">成交额</th>
+                    <SortTh label="股票" sortKey="name" sort={sort} onSort={toggle} />
+                    <SortTh label="行业" sortKey="industry" sort={sort} onSort={toggle} />
+                    <SortTh label="现价" sortKey="price" sort={sort} onSort={toggle} numeric />
+                    <SortTh label="涨跌幅" sortKey="chg_pct" sort={sort} onSort={toggle} numeric />
+                    <SortTh label="换手率" sortKey="turnover_pct" sort={sort} onSort={toggle} numeric />
+                    <SortTh label="连板" sortKey="ladder" sort={sort} onSort={toggle} numeric />
+                    <SortTh label="近 20 日涨停" sortKey="limit_20" sort={sort} onSort={toggle} numeric />
+                    <SortTh label="成交额" sortKey="amount" sort={sort} onSort={toggle} numeric />
                     <th style={{ textAlign: 'right' }}>操作</th>
                   </tr>
                 </thead>

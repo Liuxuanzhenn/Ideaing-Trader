@@ -280,6 +280,15 @@ b, strong { font-weight: 520; }
 
 /* 表格 */
 .table-wrap { border: 1px solid var(--hairline); border-radius: var(--radius-sm); overflow-x: auto; }
+
+/* 可排序表：表格本身不横向溢出（实测 table 宽度 == 容器宽度），
+   因此这里不用滚动容器，表头才能贴住 .main 的滚动 */
+.table-wrap--sticky { overflow: visible; }
+.table-wrap--sticky thead th { position: sticky; top: 0; z-index: 2; background: #0d0d0f; }
+/* 阴影只在表头真的贴住顶部之后出现，静止时没有 */
+.table-wrap--sticky.is-scrolled thead th {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .10), 0 6px 12px -6px rgba(0, 0, 0, .55);
+}
 table.data { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 table.data thead th {
   text-align: left; font-weight: 400; color: var(--muted-2);
@@ -695,3 +704,15 @@ table.data.sectors .link-chip { font-size: .8125rem; }
 @media (max-width: 1024px) { .stat4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .kline-note { color: var(--muted-2); font-size: .75rem; }
+
+/* 可排序表头：整格按钮，键盘可达 */
+.th-sort {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+  cursor: pointer; border-radius: 3px;
+}
+.th-sort:hover { color: var(--text); }
+.th-sort.active { color: var(--text); }
+.th-caret { font-size: 9px; opacity: .5; }
+.th-sort.active .th-caret { opacity: 1; }
+.th-sort:focus-visible { outline: 2px solid #ffffff66; outline-offset: 1px; }
