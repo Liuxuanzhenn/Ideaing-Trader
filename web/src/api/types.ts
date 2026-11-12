@@ -227,6 +227,13 @@ export interface StockStats {
   max_ladder: number;
 }
 
+/** 板块（行业/概念/地域/风格）归属；只有归属信息，不含板块涨跌 */
+export interface StockBoard {
+  code: string;
+  name: string;
+  type: 'industry' | 'concept' | 'region' | 'style' | string;
+}
+
 /** 行业分类的可用性：null 表示后端还没提供这个字段（旧 API） */
 export type IndustryStatus = 'ok' | 'empty_for_delisted' | 'missing' | 'missing_basic';
 
@@ -242,6 +249,8 @@ export interface Stock {
   industry_status: IndustryStatus | null;
   /** null = 概念数据源未接入；[] = 已查询且确实无概念（当前不会出现） */
   concepts: string[] | null;
+  /** null = 板块数据未接入；[] = 已接入但没有归属 */
+  boards: StockBoard[] | null;
   trade_status: 'normal' | 'suspended' | 'st';
   /** 无成交时为 null，不用 0 冒充 */
   price: number | null;
@@ -469,4 +478,69 @@ export class ApiError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+/* ---------- 板块表现 ---------- */
+
+export type BoardType = 'industry' | 'concept' | 'region' | 'style';
+
+export interface BoardRow {
+  code: string;
+  name: string;
+  type: BoardType | string;
+  /** 等权涨跌幅（百分数）；当日无有效成员时为 null，绝不填 0 */
+  pct_chg_ew: number | null;
+  up_count: number;
+  down_count: number;
+  flat_count: number;
+  leader_symbol: string | null;
+  leader_name: string | null;
+  member_count: number;
+  valid_count: number;
+}
+
+/** 板块/龙虎榜端点返回的精简元信息（没有完整 DataMeta 的字段，就不编造） */
+export interface CardMeta {
+  /** 数据对应交易日 */
+  as_of: string;
+  /** 管线产出时刻；后端没给就是 null */
+  updated_at: string | null;
+  snapshot: string | null;
+  level: DataStatusLevel;
+}
+
+export interface BoardList {
+  meta: CardMeta;
+  rows: BoardRow[];
+  /** ok = 有数据；empty = 当日没有聚合（或尚未接入） */
+  status: 'ok' | 'empty';
+}
+
+/* ---------- 龙虎榜 ---------- */
+
+export interface DragonTigerRow {
+  trade_id: string;
+  symbol: string | null;
+  secucode: string;
+  name: string | null;
+  market: string | null;
+  close: number | null;
+  chg_pct: number | null;
+  turnover_rate: number | null;
+  billboard_amt: number | null;
+  buy_amt: number | null;
+  sell_amt: number | null;
+  net_amt: number | null;
+  deal_amt_ratio: number | null;
+  free_mcap: number | null;
+  reason: string;
+  reason_text: string;
+}
+
+export interface DragonTigerList {
+  meta: CardMeta;
+  rows: DragonTigerRow[];
+  status: 'ok' | 'empty';
+  /** 被默认过滤掉的北交所条数，必须展示，不能静默 */
+  excluded_bj: number;
 }

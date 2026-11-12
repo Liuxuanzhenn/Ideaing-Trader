@@ -5,6 +5,8 @@ import type {
   BacktestForm,
   BacktestOptions,
   BacktestResult,
+  BoardList,
+  DragonTigerList,
   NewsList,
   Portfolio,
   Review,
@@ -32,6 +34,10 @@ export interface ApiClient {
   getBacktestOptions(): Promise<BacktestOptions>;
   submitBacktest(form: BacktestForm): Promise<TaskItem>;
   getBacktestResult(taskId: string): Promise<BacktestResult>;
+
+  /** 板块表现：一次取全部类型（不传 type），前端按 type 过滤 */
+  getBoards(date: string): Promise<BoardList>;
+  getDragonTiger(date: string): Promise<DragonTigerList>;
 
   getTasks(query?: { status?: TaskStatus; limit?: number }): Promise<TaskList>;
   getNews(): Promise<NewsList>;
@@ -82,6 +88,8 @@ export function createHttpClient(baseUrl = '/api'): ApiClient {
     getBacktestOptions: () => request<BacktestOptions>('/backtests/options'),
     submitBacktest: (form) => post<TaskItem>('/backtests', form),
     getBacktestResult: (taskId) => request<BacktestResult>(`/backtests/${encodeURIComponent(taskId)}`),
+    getBoards: (date) => request<BoardList>(`/boards?date=${encodeURIComponent(date)}`),
+    getDragonTiger: (date) => request<DragonTigerList>(`/dragon-tiger?date=${encodeURIComponent(date)}`),
     getTasks: (query) => {
       const params = new URLSearchParams({ limit: String(query?.limit ?? 20) });
       if (query?.status) params.set('status', query.status);

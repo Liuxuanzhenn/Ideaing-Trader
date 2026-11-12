@@ -263,6 +263,100 @@ function reviewPayload(state: DemoState): Review {
 
 /* ---------- 个股 ---------- */
 
+/** 板块归属：industry/concept/region/style 四类；partial 时故意留 leader_name 为空 */
+function boardMembership(state: DemoState, code: string, industry: string | null): import('./types').StockBoard[] | null {
+  if (state === 'empty') return null;
+  const bases = [
+    industry ? { code: `BK${industry}`, name: industry, type: 'industry' } : null,
+    { code: 'BKGN-AI', name: 'AI 应用', type: 'concept' },
+    { code: 'BKGN-HL', name: '华为链', type: 'concept' },
+    { code: 'BKGN-SL', name: '算力', type: 'concept' },
+    { code: 'BKGN-XC', name: '信创', type: 'concept' },
+    { code: 'BKDY-HN', name: '湖南', type: 'region' },
+    { code: 'BKDY-HD', name: '华东', type: 'region' },
+    { code: 'BKFG-ZZ', name: '中证 500', type: 'style' },
+    { code: 'BKFG-CZ', name: '成长风格', type: 'style' },
+  ].filter((item): item is { code: string; name: string; type: string } => item !== null);
+  if (state === 'partial') return bases.filter((item) => item.type !== 'style');
+  void code;
+  return bases;
+}
+
+const BOARD_TYPES = ['region', 'industry', 'concept', 'style'] as const;
+
+/** 板块表现：一次返回四类（与后端不传 type 的行为一致）；empty 态整块为空 */
+function boardRows(state: DemoState): import('./types').BoardRow[] {
+  if (state === 'empty') return [];
+  const random = rng(20261111);
+  const names: Record<string, string[]> = {
+    region: ['湖南', '华东', '华南', '北京', '江苏', '浙江'],
+    industry: ['软件', '半导体', '通信', '电池', '传媒', '计算机', '化工', '医药'],
+    concept: ['AI 应用', '华为链', '算力', '信创', '光模块', '机器人', '储能', '低空经济'],
+    style: ['沪深 300', '中证 500', '中证 1000', '成长风格', '价值风格', '高股息'],
+  };
+  const rows: import('./types').BoardRow[] = [];
+  for (const type of BOARD_TYPES) {
+    names[type].forEach((name, index) => {
+      const member = 40 + Math.floor(random() * 260);
+      const valid = state === 'partial' && index === 0 ? 0 : member - Math.floor(random() * 8);
+      const up = valid === 0 ? 0 : Math.floor(valid * (0.3 + random() * 0.45));
+      const down = valid === 0 ? 0 : Math.floor((valid - up) * (0.55 + random() * 0.4));
+      rows.push({
+        code: `${type.slice(0, 2).toUpperCase()}${String(index + 1).padStart(3, '0')}`,
+        name,
+        type,
+        // 无有效成员时等权涨跌为空，绝不填 0
+        pct_chg_ew: valid === 0 ? null : +(6 * (random() - 0.45)).toFixed(2),
+        up_count: up,
+        down_count: down,
+        flat_count: Math.max(0, valid - up - down),
+        // partial 态模拟「有板块但 leader_name 为 null」，避免真遇到时崩
+        leader_symbol: state === 'partial' && index % 3 === 0 ? null : `00${2000 + index}`,
+        leader_name: state === 'partial' && index % 3 === 0 ? null : `${name}龙头`,
+        member_count: member,
+        valid_count: valid,
+      });
+    });
+  }
+  return rows;
+}
+
+/** 龙虎榜：excluded_bj 由「后端」给（mock 里也当成后端产物） */
+function dragonTigerRows(state: DemoState): import('./types').DragonTigerRow[] {
+  if (state === 'empty') return [];
+  const random = rng(20261112);
+  const reasons = [
+    ['106', '日涨幅偏离值达 7% 的证券'],
+    ['107', '日振幅值达 15% 的证券'],
+    ['111', '日换手率达 20% 的证券'],
+  ];
+  return Array.from({ length: state === 'partial' ? 3 : 8 }, (_, index) => {
+    const [reason, reasonText] = reasons[index % reasons.length];
+    const billboard = (1 + random() * 6) * 1e8;
+    const buy = billboard * (0.4 + random() * 0.3);
+    const sell = billboard - buy;
+    const gap = state === 'partial' && index === 0;
+    return {
+      trade_id: `DT-${index + 1}`,
+      symbol: gap ? null : `00${2261 + index}`,
+      secucode: `00${2261 + index}.SZ`,
+      name: gap ? null : `标的 ${index + 1}`,
+      market: gap ? null : 'SZ',
+      close: gap ? null : +(8 + random() * 40).toFixed(2),
+      chg_pct: gap ? null : +(6 * (random() - 0.2)).toFixed(2),
+      turnover_rate: gap ? null : +(2 + random() * 25).toFixed(2),
+      billboard_amt: billboard,
+      buy_amt: buy,
+      sell_amt: sell,
+      net_amt: buy - sell,
+      deal_amt_ratio: +(5 + random() * 40).toFixed(2),
+      free_mcap: (20 + random() * 200) * 1e8,
+      reason,
+      reason_text: reasonText,
+    };
+  });
+}
+
 const STOCK_BASE: Record<string, { name: string; board: string; industry: string | null; concepts: string[]; price: number; chg_pct: number }> = {
   '002261': { name: '拓维信息', board: '深主板', industry: '软件', concepts: ['AI 应用', '华为链'], price: 26.18, chg_pct: 9.96 },
   '000977': { name: '浪潮信息', board: '深主板', industry: '计算机', concepts: ['算力', '服务器'], price: 48.72, chg_pct: 6.85 },
@@ -317,6 +411,7 @@ function stockPayload(state: DemoState, code: string): Stock {
     industry_status: base.industry ? 'ok' : 'missing_basic',
     industry: partial ? null : base.industry,
     concepts: base.concepts,
+    boards: boardMembership(state, code, base.industry),
     trade_status: 'normal',
     price: base.price,
     chg_pct: base.chg_pct,
@@ -688,6 +783,32 @@ export function createMockClient(state: DemoState): ApiClient {
         ];
         return { task_id: taskId, lines };
       }, 200),
+
+    getBoards: () =>
+      guard<import('./types').BoardList>(() => ({
+        meta: {
+          as_of: '2026-11-11',
+          updated_at: state === 'stale' ? '2026-11-10T07:00:00.000Z' : '2026-11-11T07:30:00.000Z',
+          snapshot: 'snapshot-mock-0001',
+          level: state === 'stale' ? 'stale' : state === 'partial' ? 'partial' : state === 'empty' ? 'empty' : 'ok',
+        },
+        rows: boardRows(state),
+        status: state === 'empty' ? 'empty' : 'ok',
+      }), 260),
+
+    getDragonTiger: () =>
+      guard<import('./types').DragonTigerList>(() => ({
+        meta: {
+          as_of: '2026-11-11',
+          updated_at: state === 'stale' ? '2026-11-10T07:00:00.000Z' : '2026-11-11T07:30:00.000Z',
+          snapshot: 'snapshot-mock-0001',
+          level: state === 'stale' ? 'stale' : state === 'partial' ? 'partial' : state === 'empty' ? 'empty' : 'ok',
+        },
+        rows: dragonTigerRows(state),
+        status: state === 'empty' ? 'empty' : 'ok',
+        // 北交所排除条数来自「后端」，前端只展示不自己数
+        excluded_bj: state === 'empty' ? 0 : state === 'partial' ? 2 : 9,
+      }), 220),
 
     getPortfolio: () => guard<Portfolio>(() => portfolio(), 120),
 
