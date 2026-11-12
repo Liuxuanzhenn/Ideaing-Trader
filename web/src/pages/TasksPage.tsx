@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { TaskList, TaskStatus } from '../api/types';
 import type { AsyncState } from '../lib/useAsync';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip, TasksSkeleton } from '../components/States';
+import { SortTh, sortRows, useScrollShadow, useSort } from '../components/TableSort';
 import { fmtDateTime } from '../lib/format';
 
 type Filter = 'all' | 'active' | TaskStatus;
@@ -38,6 +39,9 @@ interface Props {
 
 export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
+  // 排序状态与滚动阴影必须在任何条件返回之前声明（Hooks 规则）
+  const { sort, toggle } = useSort();
+  const wrapRef = useScrollShadow<HTMLDivElement>();
 
   if (tasks.phase === 'loading') {
     return (
@@ -69,10 +73,21 @@ export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }:
 
   const data = tasks.data!;
   const ordered = [...data.items].sort((a, b) => b.id.localeCompare(a.id));
-  const rows = ordered.filter((task) => {
+  const filtered = ordered.filter((task) => {
     if (filter === 'all') return true;
     if (filter === 'active') return task.status === 'running' || task.status === 'queued';
     return task.status === filter;
+  });
+  // 客户端排序；空值恒末尾，数值列按数值比
+  const rows = sortRows(filtered, sort, (task, key) => {
+    switch (key) {
+      case 'id': return task.id;
+      case 'type': return task.type;
+      case 'status': return task.status;
+      case 'progress_pct': return task.progress_pct;
+      case 'submitted': return task.submitted;
+      default: return null;
+    }
   });
 
   return (
@@ -122,16 +137,16 @@ export function TasksPage({ tasks, onOpenResult, onSelectTask, selectedTaskId }:
           />
         </div>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-wrap--sticky" ref={wrapRef}>
           <table className="data">
             <thead>
               <tr>
-                <th>任务</th>
-                <th>类型</th>
-                <th>状态</th>
-                <th>进度</th>
+                <SortTh label="任务" sortKey="id" sort={sort} onSort={toggle} />
+                <SortTh label="类型" sortKey="type" sort={sort} onSort={toggle} />
+                <SortTh label="状态" sortKey="status" sort={sort} onSort={toggle} />
+                <SortTh label="进度" sortKey="progress_pct" sort={sort} onSort={toggle} numeric />
                 <th>参数摘要</th>
-                <th>提交 / 完成</th>
+                <SortTh label="提交 / 完成" sortKey="submitted" sort={sort} onSort={toggle} />
                 <th style={{ textAlign: 'right' }}>产物</th>
               </tr>
             </thead>

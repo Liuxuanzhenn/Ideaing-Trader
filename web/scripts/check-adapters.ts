@@ -5,6 +5,7 @@
  */
 import { settleStocks } from '../src/lib/settle.ts';
 import { conceptsText, industryLabel } from '../src/lib/format.ts';
+import { isBlank, nextSort, sortRows } from '../src/lib/sort.ts';
 
 let failed = 0;
 const fail = (message: string) => {
@@ -66,8 +67,34 @@ for (const label of [conceptsText(null), conceptsText([])]) {
   if (label === '') fail('概念文案不得是空串');
 }
 
+// 表格排序：空值恒末尾（升降序都一样）、数值按数值、日期按日期、三态循环
+const rows = [
+  { id: 'a', v: 3, d: '2026-11-02' },
+  { id: 'b', v: null, d: null },
+  { id: 'c', v: 1, d: '2026-11-01' },
+  { id: 'd', v: 10, d: '2026-11-03' },
+];
+const asc = sortRows(rows, { key: 'v', dir: 'asc' }, (r, k) => (k === 'v' ? r.v : r.d)).map((r) => r.id);
+const desc = sortRows(rows, { key: 'v', dir: 'desc' }, (r, k) => (k === 'v' ? r.v : r.d)).map((r) => r.id);
+if (asc.join('') !== 'cadb') fail(`数值升序应为 c,a,d,b（空值恒末尾），实际 ${asc.join(',')}`);
+if (desc.join('') !== 'dacb') fail(`数值降序应为 d,a,c,b（空值仍末尾），实际 ${desc.join(',')}`);
+if (asc.indexOf('b') !== asc.length - 1) fail('空值必须排在最后');
+if (desc.indexOf('b') !== desc.length - 1) fail('降序时空值也必须在最后');
+const byDate = sortRows(rows, { key: 'd', dir: 'asc' }, (r, k) => (k === 'd' ? r.d : r.v)).map((r) => r.id);
+if (byDate.join('') !== 'cadb') fail(`日期升序应为 c,a,d,b，实际 ${byDate.join(',')}`);
+if (sortRows(rows, null, (r) => r.v).map((r) => r.id).join('') !== 'abcd') fail('无排序时必须保持接口原顺序');
+// 三态循环：无 → 升 → 降 → 无
+let st = nextSort(null, 'v');
+if (!st || st.dir !== 'asc') fail('首次点击应为升序');
+st = nextSort(st, 'v');
+if (!st || st.dir !== 'desc') fail('第二次点击应为降序');
+st = nextSort(st, 'v');
+if (st !== null) fail('第三次点击应取消排序');
+for (const blank of [null, undefined, '', '—']) if (!isBlank(blank)) fail(`isBlank 应判为真空值: ${String(blank)}`);
+if (isBlank(0) || isBlank('0')) fail('0 不是空值，不能被当成缺失');
+
 if (failed) {
   console.error(`适配层语义检查失败，${failed} 项`);
   process.exit(1);
 }
-console.log('适配层语义检查通过：批量取数四态 + 行业文案七态 + 概念文案四态（null 说明未接入 / [] 不显示 / 有值拼接 / 最多 3 个）');
+console.log('适配层语义检查通过：批量取数四态 + 行业七态 + 概念四态 + 排序语义（空值恒末尾 / 数值 / 日期 / 三态循环 / 无排序保序）');

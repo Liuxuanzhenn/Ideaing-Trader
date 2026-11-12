@@ -4,6 +4,7 @@ import type { BacktestResult } from '../api/types';
 import { useAsync } from '../lib/useAsync';
 import { AreaChart, LineChart } from '../components/charts';
 import { EmptyBlock, ErrorBlock, PartialBanner, StaleBanner, StatusChip } from '../components/States';
+import { SortTh, sortRows, useScrollShadow, useSort } from '../components/TableSort';
 import { fmt, pct, toneOf, yuan } from '../lib/format';
 
 interface Props {
@@ -20,6 +21,9 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
     [client, taskId],
   );
   const result = useAsync(load);
+  // 排序状态与滚动阴影必须在任何条件返回之前声明（Hooks 规则）
+  const { sort, toggle } = useSort();
+  const wrapRef = useScrollShadow<HTMLDivElement>();
   const [tradePage, setTradePage] = useState(1);
 
   if (!taskId) {
@@ -59,7 +63,20 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
   const metrics = data.metrics;
   const pages = Math.max(1, Math.ceil(data.trades.length / TRADE_PAGE));
   const current = Math.min(tradePage, pages);
-  const trades = data.trades.slice((current - 1) * TRADE_PAGE, current * TRADE_PAGE);
+  // 只对交易明细做客户端排序（分页大小不变）
+  const sortedTrades = sortRows(data.trades, sort, (trade, key) => {
+    switch (key) {
+      case 'open': return trade.open;
+      case 'close': return trade.close;
+      case 'code': return trade.code;
+      case 'qty': return trade.qty;
+      case 'price': return trade.price;
+      case 'pnl': return trade.pnl;
+      case 'fee': return trade.fee;
+      default: return null;
+    }
+  });
+  const trades = sortedTrades.slice((current - 1) * TRADE_PAGE, current * TRADE_PAGE);
 
   return (
     <>
@@ -183,10 +200,18 @@ export function BacktestResultPage({ client, taskId, onGoTasks }: Props) {
             <span className="card-title">交易明细</span>
             <span className="card-sub">{data.trades.length} 笔样例 · 第 {current}/{pages} 页</span>
           </div>
-          <div className="table-wrap">
+          <div className="table-wrap table-wrap--sticky" ref={wrapRef}>
             <table className="data">
               <thead>
-                <tr><th>开仓</th><th>平仓</th><th>股票</th><th className="num">数量</th><th className="num">成交价</th><th className="num">盈亏</th><th className="num">费用</th></tr>
+                <tr>
+                  <SortTh label="开仓" sortKey="open" sort={sort} onSort={toggle} />
+                  <SortTh label="平仓" sortKey="close" sort={sort} onSort={toggle} />
+                  <SortTh label="股票" sortKey="code" sort={sort} onSort={toggle} />
+                  <SortTh label="数量" sortKey="qty" sort={sort} onSort={toggle} numeric />
+                  <SortTh label="成交价" sortKey="price" sort={sort} onSort={toggle} numeric />
+                  <SortTh label="盈亏" sortKey="pnl" sort={sort} onSort={toggle} numeric />
+                  <SortTh label="费用" sortKey="fee" sort={sort} onSort={toggle} numeric />
+                </tr>
               </thead>
               <tbody>
                 {trades.map((trade) => (
