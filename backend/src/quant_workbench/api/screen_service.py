@@ -13,9 +13,10 @@ shrinks its own universe without saying so is worse than a narrow one.
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Mapping
 
 from .contracts import DataMeta, ScreenOptions, ScreenResult, ScreenRow
-from .repository import Connection, fetch_latest_session
+from .repository import Connection, InstrumentsMetaEntry, fetch_latest_session
 
 MAX_CONDITIONS = 6
 LIMIT_WINDOW = 20
@@ -62,6 +63,7 @@ def screen(
     snapshot_id: str,
     updated_at: datetime,
     exclude_st: bool = True,
+    meta: Mapping[str, InstrumentsMetaEntry] | None = None,
 ) -> ScreenResult:
     if len(conditions) > MAX_CONDITIONS:
         raise ValueError(f"at most {MAX_CONDITIONS} conditions, got {len(conditions)}")
@@ -104,17 +106,7 @@ def screen(
     return ScreenResult(
         meta=DataMeta(as_of=end, updated_at=updated_at, snapshot_id=snapshot_id, level="ok"),
         rows=tuple(
-            ScreenRow(
-                code=str(row[0]),
-                name=None,
-                price=float(row[1]),
-                chg_pct=float(row[2]),
-                turnover_pct=float(row[3]) if row[3] is not None else None,
-                amount=float(row[4]),
-                ladder=int(row[5]),
-                limit_20=int(row[6]),
-            )
-            for row in rows
+            _screen_row(row, meta) for row in rows
         ),
         excluded=excluded,
     )
@@ -137,3 +129,20 @@ def _excluded(conn: Connection, trade_date: date) -> dict[str, int]:
     ).fetchall()
     st = int(rows[0][0]) if rows else 0
     return {"st": st} if st else {}
+
+
+def _screen_row(row, meta: Mapping[str, InstrumentsMetaEntry] | None) -> ScreenRow:
+    """One screen row plus whatever the optional metadata file knows about it."""
+    entry = meta.get(str(row[0])) if meta else None
+    return ScreenRow(
+        code=str(row[0]),
+        name=entry.name if entry else None,
+        price=float(row[1]),
+        chg_pct=float(row[2]),
+        turnover_pct=float(row[3]) if row[3] is not None else None,
+        amount=float(row[4]),
+        ladder=int(row[5]),
+        limit_20=int(row[6]),
+        industry=entry.industry if entry else None,
+        industry_status=entry.status if entry else None,
+    )

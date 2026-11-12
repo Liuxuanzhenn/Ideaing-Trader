@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from .repository import Connection, fetch_latest_snapshot, fetch_quality_checks
-from .repository import resolve_symbol
+from .repository import fetch_instruments_meta, resolve_symbol
 from decimal import Decimal, InvalidOperation
 
 from .backtest_service import STRATEGIES, run as run_backtest_job
@@ -123,6 +123,7 @@ def create_app(
                 trade_date,
                 snapshot_id=snapshot_id,
                 updated_at=updated_at,
+                meta=fetch_instruments_meta(),
             )
         except KeyError as error:
             # Unknown code and a code with no stored bars are the same answer to the caller.
@@ -217,6 +218,7 @@ def create_app(
                 trade_date,
                 snapshot_id=snapshot_id,
                 updated_at=updated_at,
+                meta=fetch_instruments_meta(),
             )
         except ValueError as error:
             raise HTTPException(status_code=422, detail={"code": "INVALID_SCREEN", "message": str(error)}) from error

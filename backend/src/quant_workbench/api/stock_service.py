@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Mapping
 
 from quant_workbench.data import DailyBar
 from quant_workbench.market.review import low_open_high_close
@@ -25,6 +26,7 @@ from .contracts import (
 )
 from .repository import (
     Connection,
+    InstrumentsMetaEntry,
     fetch_latest_session,
     fetch_symbol_board,
     fetch_symbol_history,
@@ -46,8 +48,13 @@ def build_stock(
     *,
     snapshot_id: str,
     updated_at: datetime,
+    meta: Mapping[str, InstrumentsMetaEntry] | None = None,
 ) -> StockDetail:
-    """`trade_date` defaults to the newest stored session; never the clock."""
+    """`trade_date` defaults to the newest stored session; never the clock.
+
+    `meta` is the optional instruments_meta mapping: None means no metadata file, so
+    name/industry/industry_status stay None rather than claiming an absent record.
+    """
     end = trade_date or fetch_latest_session(conn)
     if end is None:
         raise ValueError("bars is empty; cannot build a stock view")
@@ -64,6 +71,7 @@ def build_stock(
     limit_count, max_ladder = fetch_symbol_streaks(conn, symbol, window_start, end)
 
     low_open = low_open_high_close(trading_bars, gap=LOW_OPEN_GAP)
+    entry = meta.get(symbol) if meta else None
     return StockDetail(
         meta=DataMeta(
             as_of=end,
@@ -72,7 +80,7 @@ def build_stock(
             level="ok" if latest is not None else "empty",
         ),
         code=symbol,
-        name=None,
+        name=entry.name if entry else None,
         board=board,
         trade_status=_trade_status(latest, bars),
         price=float(latest.close) if latest else None,
@@ -103,6 +111,8 @@ def build_stock(
             for bar in trading_bars
         ),
         price_adjustment=PRICE_ADJUSTMENT,
+        industry=entry.industry if entry else None,
+        industry_status=entry.status if entry else None,
     )
 
 
