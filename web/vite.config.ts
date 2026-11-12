@@ -19,9 +19,22 @@ export default defineConfig(({ command }) => {
   const token = process.env.QW_API_TOKEN;
   if (command === 'serve' && !token) {
     throw new Error(
-      'QW_API_TOKEN is not set. Start the dev server with the API token in the environment, e.g. in PowerShell: $env:QW_API_TOKEN="..."; npm run dev',
+      'QW_API_TOKEN is not set. Start dev/preview with the API token in the environment, e.g. in PowerShell: $env:QW_API_TOKEN="..."; npm run dev  (or npm run preview)',
     );
   }
+
+  // dev 与 preview 共用同一份代理：token 只在 Node 层注入，浏览器永远拿不到
+  const proxy = {
+    '/api': {
+      target: apiTarget,
+      changeOrigin: false,
+      headers: { authorization: `Bearer ${token ?? ''}` },
+    },
+    '/health': {
+      target: apiTarget,
+      changeOrigin: false,
+    },
+  };
 
   return {
   plugins: [react()],
@@ -30,17 +43,14 @@ export default defineConfig(({ command }) => {
     // who can reach it can use your credentials.
     host: '127.0.0.1',
     port: 5273,
-    proxy: {
-      '/api': {
-        target: apiTarget,
-        changeOrigin: false,
-        headers: { authorization: `Bearer ${token ?? ''}` },
-      },
-      '/health': {
-        target: apiTarget,
-        changeOrigin: false,
-      },
-    },
+    proxy,
+  },
+  // 生产构建预览：dist 是静态文件，但 /api 仍由这里的 dev server 进程代理，
+  // token 同样只存在于 Node 层；缺 token 在 serve 分支已硬失败，不会静默无凭证转发。
+  preview: {
+    host: '127.0.0.1',
+    port: 5274,
+    proxy,
   },
   };
 });
