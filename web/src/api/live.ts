@@ -522,9 +522,9 @@ interface LiveBoardList {
   }[];
 }
 
-/** 一次取全部板块类型（不传 type），前端按 type 过滤，切 tab 不重复请求 */
-export async function fetchLiveBoards(date: string): Promise<import('./types').BoardList> {
-  const payload = await getJson<LiveBoardList>(`/api/boards?date=${encodeURIComponent(date)}`);
+/** 只取当前类型：全量响应 240 KB、链路 4–6 KB/s，一次取四类会把首屏压到 40 秒以上 */
+export async function fetchLiveBoards(date: string, type: string): Promise<import('./types').BoardList> {
+  const payload = await getJson<LiveBoardList>(`/api/boards?date=${encodeURIComponent(date)}&type=${encodeURIComponent(type)}`);
   return {
     meta: {
       as_of: payload.meta.as_of,

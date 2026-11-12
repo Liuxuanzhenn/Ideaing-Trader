@@ -35,8 +35,10 @@ export function fmtDate(iso: string): string {
 
 /** 基础单位「元」→ 展示层亿/万，单位换算只发生在这一层。 */
 export function yuan(value: number): string {
-  if (value >= 1e8) return `${(value / 1e8).toFixed(1)} 亿`;
-  if (value >= 1e4) return `${(value / 1e4).toFixed(1)} 万`;
+  // 用绝对值判断量级：否则负数（如龙虎榜净额 -2.27 亿）会掉进「元」分支显示成一串数字
+  const abs = Math.abs(value);
+  if (abs >= 1e8) return `${(value / 1e8).toFixed(2)} 亿`;
+  if (abs >= 1e4) return `${(value / 1e4).toFixed(1)} 万`;
   return `${value.toFixed(0)} 元`;
 }
 

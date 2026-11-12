@@ -96,7 +96,7 @@ function DragonTigerTable({
                 <td className={`num ${row.net_amt === null ? 'flat' : toneOf(row.net_amt)}`}>
                   {row.net_amt === null ? '—' : yuan(row.net_amt)}
                 </td>
-                <td className="num muted">{row.deal_amt_ratio === null ? '—' : `${row.deal_amt_ratio}%`}</td>
+                <td className="num muted">{row.deal_amt_ratio === null ? '—' : `${row.deal_amt_ratio.toFixed(1)}%`}</td>
                 <td className="muted">{row.reason_text}</td>
               </tr>
             ))}
