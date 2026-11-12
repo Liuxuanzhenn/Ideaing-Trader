@@ -481,3 +481,19 @@ def fetch_stock_boards(conn: Connection, symbol: str) -> list[Any] | None:
 
 def fetch_dragon_tiger(conn: Connection, trade_date: date) -> list[Any] | None:
     return _optional(conn, DRAGON_TIGER_SQL, [trade_date.isoformat()])
+
+
+FETCH_LOG_SQL = """
+SELECT status, rows, error_message
+FROM fetch_log
+WHERE dataset = ? AND target_date = ?
+"""
+
+
+def fetch_fetch_log(conn: Connection, dataset: str, trade_date: date) -> tuple[str, int, str | None] | None:
+    """One collection record, or None when nobody ever tried that date."""
+    rows = _optional(conn, FETCH_LOG_SQL, [dataset, trade_date.isoformat()])
+    if not rows:
+        return None
+    status, count, message = rows[0]
+    return str(status), int(count or 0), None if message is None else str(message)
