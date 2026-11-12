@@ -111,7 +111,8 @@ class BuildStockTests(unittest.TestCase):
         self.assertIsNone(stock.name)
         self.assertIsNone(stock.industry)
         self.assertIsNone(stock.mcap)
-        self.assertEqual(stock.concepts, ())
+        # No concept source is wired up, so this is null rather than an empty list.
+        self.assertIsNone(stock.concepts)
 
     def test_twenty_day_change_needs_enough_history(self):
         short = build_stock(FakeConnection(history(10)), "SH600000", DAY, snapshot_id=SNAPSHOT, updated_at=UPDATED)
