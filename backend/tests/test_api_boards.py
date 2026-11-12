@@ -73,20 +73,21 @@ def client_for(conn):
 class BoardEndpointTests(unittest.TestCase):
     def test_rows_are_grouped_by_type(self):
         conn = FakeConnection(boards=[
-            ("683", "央国企改革", "concept", 0.42, 721, 606, 92, "SZ300620", 1451, 1419),
-            ("153", "广东板块", "region", 0.9, 500, 300, 20, "SH600000", 908, 820),
-            ("1205", "机械设备", "industry", -0.3, 100, 200, 10, "SH600001", 629, 310),
+            ("683", "央国企改革", "concept", 0.42, 721, 606, 92, "SZ300620", "光库科技", 1451, 1419),
+            ("153", "广东板块", "region", 0.9, 500, 300, 20, "SH600000", "浦发银行", 908, 820),
+            ("1205", "机械设备", "industry", -0.3, 100, 200, 10, "SH600001", "白云机场", 629, 310),
         ])
         body = client_for(conn).get(f"/api/boards?date={DAY}").json()
         self.assertEqual([row["type"] for row in body["rows"]], ["region", "industry", "concept"])
         self.assertEqual(body["meta"]["status"], "ok")
         self.assertIn("pct_chg_ew", body["rows"][0])
         self.assertEqual(body["rows"][2]["valid_count"], 1419)
+        self.assertEqual(body["rows"][2]["leader_name"], "光库科技")
 
     def test_type_filter_narrows_the_list(self):
         conn = FakeConnection(boards=[
-            ("683", "央国企改革", "concept", 0.42, 1, 1, 0, "SZ300620", 1451, 1419),
-            ("1205", "机械设备", "industry", -0.3, 1, 1, 0, "SH600001", 629, 310),
+            ("683", "央国企改革", "concept", 0.42, 1, 1, 0, "SZ300620", "光库科技", 1451, 1419),
+            ("1205", "机械设备", "industry", -0.3, 1, 1, 0, "SH600001", "白云机场", 629, 310),
         ])
         body = client_for(conn).get(f"/api/boards?date={DAY}&type=industry").json()
         self.assertEqual([row["code"] for row in body["rows"]], ["1205"])

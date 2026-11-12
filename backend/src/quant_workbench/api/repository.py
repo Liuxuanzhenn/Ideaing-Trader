@@ -438,7 +438,8 @@ def fetch_instruments_meta(path: str | None = None) -> dict[str, InstrumentsMeta
 BOARD_TYPE_ORDER = {"region": 0, "industry": 1, "concept": 2, "style": 3}
 BOARD_DAILY_SQL = """
 SELECT d.board_code, b.board_name, d.board_type, d.pct_chg_ew,
-       d.up_count, d.down_count, d.flat_count, d.leader_symbol, d.member_count, d.valid_count
+       d.up_count, d.down_count, d.flat_count, d.leader_symbol, d.leader_name,
+       d.member_count, d.valid_count
 FROM board_daily d
 JOIN board_dim b ON b.board_code = d.board_code
 WHERE d.trade_date = ?
