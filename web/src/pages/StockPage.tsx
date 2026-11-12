@@ -137,7 +137,7 @@ function StockDetail({ client, code, portfolio, onAddWatch, onAddBasket }: Props
         <div>
           <h2 className="view-title">
             {data.name ?? data.code}{' '}
-            <span className="num muted" style={{ fontSize: 15 }}>{data.name ? data.code : ''}</span>
+            <span className="num muted" style={{ fontSize: '0.9375rem' }}>{data.name ? data.code : ''}</span>
             <StatusChip level={data.meta.status.level} />
           </h2>
           <div className="view-sub">

@@ -70,7 +70,7 @@ export function ContextPanel({
               return (
                 <>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <strong style={{ fontSize: 16 }}>{item.name ?? item.code}</strong>
+                    <strong style={{ fontSize: '1rem' }}>{item.name ?? item.code}</strong>
                     <span className="num muted small">{item.code}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, margin: '6px 0 2px' }}>
